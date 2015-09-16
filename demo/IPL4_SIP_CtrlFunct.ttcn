@@ -1,0 +1,62 @@
+///////////////////////////////////////////////////////////////////////////////
+//                                                                           //
+// Copyright Test Competence Center (TCC) ETH 2008                           //
+//                                                                           //
+// The copyright to the computer  program(s) herein  is the property of TCC. //
+// The program(s) may be used and/or copied only with the written permission //
+// of TCC or in accordance with  the terms and conditions  stipulated in the //
+// agreement/contract under which the program(s) has been supplied.          //
+//                                                                           //
+///////////////////////////////////////////////////////////////////////////////
+//
+//  File:               IPL4_SIP_CtrlFunct.ttcn
+//  Rev:                R18N
+//  Prodnr:             CNL 113 531
+//  Updated:            2008-01-25
+//  Contact:            http://ttcn.ericsson.se
+//  Reference:          
+
+module IPL4_SIP_CtrlFunct {
+
+  import from IPL4_demo_types all;
+  import from IPL4asp_Types all;
+  
+  external function f_IPL4_listen(
+    inout SipEncDec_PT portRef, 
+    in HostName locName,
+    in PortNumber locPort,
+    in ProtoTuple proto,
+    in OptionList options := {}
+  ) return Result; 
+
+  external function f_IPL4_connect(
+    inout SipEncDec_PT portRef,
+    in HostName remName,
+    in PortNumber remPort,
+    in HostName locName,
+    in PortNumber locPort,
+    in ConnectionId connId,
+    in ProtoTuple proto,
+    in OptionList options := {}
+  ) return Result;
+
+  external function f_IPL4_close(
+    inout SipEncDec_PT portRef,
+    in ConnectionId id,
+    in ProtoTuple proto := { unspecified := {} }
+  ) return Result;
+
+  external function f_IPL4_setUserData(
+    inout SipEncDec_PT portRef,
+    in ConnectionId id,
+    in UserData userData
+  ) return Result;
+
+  external function f_IPL4_getUserData(
+    inout SipEncDec_PT portRef,
+    in ConnectionId id,
+    out UserData userData
+  ) return Result;
+
+} // module IPL4_SIP_CtrlFunct
+

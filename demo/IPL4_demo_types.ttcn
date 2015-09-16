@@ -1,0 +1,120 @@
+///////////////////////////////////////////////////////////////////////////////
+//                                                                           //
+// Copyright Test Competence Center (TCC) ETH 2007                           //
+//                                                                           //
+// The copyright to the computer  program(s) herein  is the property of TCC. //
+// The program(s) may be used and/or copied only with the written permission //
+// of TCC or in accordance with  the terms and conditions  stipulated in the //
+// agreement/contract under which the program(s) has been supplied.          //
+//                                                                           //
+///////////////////////////////////////////////////////////////////////////////
+//
+//  File:               IPL4_demo_types.ttcn
+//  Rev:                R18N
+//  Prodnr:             CNL 113 531
+//  Updated:            2007-03-20
+//  Contact:            http://ttcn.ericsson.se
+//  Reference:          
+
+module IPL4_demo_types {
+
+  import from SIPmsg_Types all;
+  import from SIPmsg_PortType all;  
+  import from IPL4asp_PortType all;
+  import from IPL4asp_Types all;  
+
+  type record SIP_Send {
+    ConnectionId connId,
+    ProtoTuple proto,
+    PDU_SIP msg
+  }
+
+  type record SIP_SendTo {
+    ConnectionId connId,
+    HostName remName,
+    PortNumber remPort,
+    ProtoTuple proto,
+    PDU_SIP msg
+  }
+
+  type record SIP_RecvFrom {
+    ConnectionId connId,
+    HostName remName,
+    PortNumber remPort,
+    HostName locName,
+    PortNumber locPort,
+    ProtoTuple proto,
+    UserData userData,
+    PDU_SIP msg
+  }
+  
+  type component SipEncDec_CT {
+    port SipEncDec_PT SipEncDec;
+  }
+    
+  type component system_CT {
+    port IPL4asp_PT IPL4;
+  }
+
+  type component dummy_CT {
+    port IPL4asp_PT IPL4;
+  }
+
+  type port SIP_Helper_PT message{
+     inout PDU_SIP;    
+  }with{ extension "internal"};
+  
+  type component SIP_Example_CT {
+    port SIP_Helper_PT SIP;
+  }
+
+  type component SIP_To_IPL4_CT {
+    port SIP_Helper_PT SIP;
+    port IPL4asp_PT IPL4;
+  }
+  
+  type component empty_CT {
+  }
+  
+  // SIP user extension of the IPL4asp provider port
+  function IPL4_to_SIP(in ASP_RecvFrom par1, out SIP_RecvFrom par2)
+  {
+    par2.connId := par1.connId;
+    par2.remName := par1.remName;
+    par2.remPort := par1.remPort;
+    par2.locName := par1.locName;
+    par2.locPort := par1.locPort;
+    par2.proto := par1.proto;
+    par2.userData := par1.userData;
+    par2.msg := f_SIP_decode(oct2char(par1.msg));
+  } with { extension "prototype(fast)" }
+
+  function SIP_to_IPL4_Send(in SIP_Send par1, out ASP_Send par2)
+  {
+    par2.connId := par1.connId;
+    par2.proto := par1.proto;
+    par2.msg := char2oct(f_SIP_encode_formatted(par1.msg, false, false));
+  } with { extension "prototype(fast)" }
+
+  function SIP_to_IPL4_SendTo(in SIP_SendTo par1, out ASP_SendTo par2)
+  {
+    par2.connId := par1.connId;
+    par2.remName := par1.remName;
+    par2.remPort := par1.remPort;
+    par2.proto := par1.proto;
+    par2.msg := char2oct(f_SIP_encode_formatted(par1.msg, false, false));
+  } with { extension "prototype(fast)" }
+  
+  type port SipEncDec_PT message { // internal interface of IPL4 provider
+    out SIP_Send
+    out SIP_SendTo
+    in SIP_RecvFrom
+    in ASP_Event
+  } with { extension "user IPL4asp_PT
+    out(SIP_Send -> ASP_Send: function(SIP_to_IPL4_Send);
+        SIP_SendTo -> ASP_SendTo: function(SIP_to_IPL4_SendTo))
+    in(ASP_RecvFrom -> SIP_RecvFrom: function(IPL4_to_SIP);
+       ASP_Event -> ASP_Event: simple)"
+  }
+} // module IPL4_demo_types
+

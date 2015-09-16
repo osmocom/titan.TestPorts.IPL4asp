@@ -1,0 +1,64 @@
+<!DOCTYPE TITAN_GUI_project_file>
+<Project TITAN_version="1.7.pl1" >
+    <General>
+        <Project_Name>IPL4_demo</Project_Name>
+        <Executable_Path>../../../../../../tmp/gui:getenv(USER)/IPL4_demo/IPL4_demo</Executable_Path>
+        <Working_Dir>../../../../../../tmp/gui:getenv(USER)/IPL4_demo</Working_Dir>
+        <Build_Host>alpha</Build_Host>
+        <Execution_Mode>Parallel</Execution_Mode>
+        <ScriptFile_AfterMake>IPL4_Makefile_mod.sh</ScriptFile_AfterMake>
+        <Log_Format>yes</Log_Format>
+        <GNU_Make>yes</GNU_Make>
+        <Update_Symlinks>yes</Update_Symlinks>
+        <Create_Absolute_Symlinks>no</Create_Absolute_Symlinks>
+        <Update_Makefile>yes</Update_Makefile>
+        <Localhost_Execute>yes</Localhost_Execute>
+        <Execute_Command>rsh %host &quot;cd %project_working_dir ; &quot;%executable&quot; erirohc2.eth.ericsson.se %mctr_port&quot;</Execute_Command>
+        <Execute_Hosts>alfa, beta, gamma</Execute_Hosts>
+        <UnUsed_List></UnUsed_List>
+    </General>
+    <Modules>
+        <Module>../src/IPL4asp_PortType.ttcn</Module>
+        <Module>IPL4_demo.ttcn</Module>
+        <Module>../../SIPmsg_CNL113319/src/SIPmsg_PortType.ttcn</Module>
+        <Module>../../SIPmsg_CNL113319/src/SIPmsg_Types.ttcn</Module>
+        <Module>IPL4_demo_templates.ttcn</Module>
+        <Module>../../../Libraries/TCCUsefulFunctions_CNL113472/src/TCCInterface_Functions.ttcn</Module>
+        <Module>../src/IPL4asp_Functions.ttcn</Module>
+        <Module>../src/IPL4asp_Types.ttcn</Module>
+        <Module>IPL4_SIP_CtrlFunct.ttcn</Module>
+        <Module>IPL4_demo_types.ttcn</Module>
+    </Modules>
+    <TestPorts>
+        <TestPort>../src/IPL4asp_PT.cc</TestPort>
+        <TestPort>../src/IPL4asp_PT.hh</TestPort>
+        <TestPort>../../SIPmsg_CNL113319/src/SIPmsg_PT.cc</TestPort>
+        <TestPort>../../SIPmsg_CNL113319/src/SIPmsg_PT.hh</TestPort>
+    </TestPorts>
+    <Other_Sources>
+        <Other_Source>../../SIPmsg_CNL113319/src/SIP_parse.h</Other_Source>
+        <Other_Source>../../SIPmsg_CNL113319/src/SIP_parse_.tab.c</Other_Source>
+        <Other_Source>../../SIPmsg_CNL113319/src/SIP_parse_.tab.h</Other_Source>
+        <Other_Source>../../SIPmsg_CNL113319/src/lex.SIP_parse_.c</Other_Source>
+        <Other_Source>IPL4_SIP_CtrlFunctDef.cc</Other_Source>
+        <Other_Source>../../../Libraries/TCCUsefulFunctions_CNL113472/src/TCCInterface.cc</Other_Source>
+        <Other_Source>../src/IPL4asp_discovery.cc</Other_Source>
+        <Other_Source>../src/IPL4asp_protocol_L234.hh</Other_Source>
+    </Other_Sources>
+    <Configs>
+        <Config>IPL4_demo.cfg</Config>
+    </Configs>
+    <Test_Cases>
+        <Test_Case>IPL4_demo.control</Test_Case>
+        <Test_Case>IPL4_demo.TC_dummy</Test_Case>
+        <Test_Case>IPL4_demo.TC_listen_connect</Test_Case>
+        <Test_Case>IPL4_demo.TC_connect</Test_Case>
+        <Test_Case>IPL4_demo.TC_pingpong</Test_Case>
+        <Test_Case>IPL4_demo.TC_sip_example</Test_Case>
+        <Test_Case>IPL4_demo.TC_sip_example_provider</Test_Case>
+        <Test_Case>IPL4_demo.TC_dhcp</Test_Case>
+        <Test_Case>IPL4_demo.TC_IP_req_with_cfg_file</Test_Case>
+        <Test_Case>IPL4_demo.TC_arp</Test_Case>
+    </Test_Cases>
+    <File_Group name="MainFileGroup" />
+</Project>

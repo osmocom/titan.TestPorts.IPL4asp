@@ -1,0 +1,31 @@
+<!--
+///////////////////////////////////////////////////////////////////////////////
+//                                                                           //
+// Copyright Test Competence Center (TCC) ETH 2012                           //
+//                                                                           //
+// The copyright to the computer  program(s) herein  is the property of TCC. //
+// The program(s) may be used and/or copied only with the written permission //
+// of TCC or in accordance with  the terms and conditions  stipulated in the //
+// agreement/contract under which the program(s) have been supplied          //
+///////////////////////////////////////////////////////////////////////////////
+//
+//  File:         IPL4_EIN_SCTP.grp
+//  Description:  Group file for IPL4 test port implementation
+//  Rev:          R18N
+//  Prodnr:       CNL 113 531
+//  Updated:      2012-09-06
+//  Contact:      http://ttcn.ericsson.se
+///////////////////////////////////////////////////////////////////////////////
+-->
+<!DOCTYPE TITAN_GUI_FileGroup_file>
+<FileGroup TITAN_version="2.2.pl0" >
+    <File_Group name="IPL4_EIN_SCTP" >
+        <File path="IPL4asp_PT.cc" />
+        <File path="IPL4asp_PT.hh" />
+        <File path="IPL4asp_PortType.ttcn" />
+        <File path="IPL4asp_Types.ttcn" />
+        <File_Groups>
+            <File_Group path="../../Common_Components/SS7Common_CNL113755/SS7Common_CNL113755.grp" />
+        </File_Groups>
+    </File_Group>
+</FileGroup>

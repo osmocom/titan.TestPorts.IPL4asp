@@ -1,0 +1,77 @@
+///////////////////////////////////////////////////////////////////////////////
+//                                                                           //
+// Copyright Test Competence Center (TCC) ETH 2008                           //
+//                                                                           //
+// The copyright to the computer  program(s) herein  is the property of TCC. //
+// The program(s) may be used and/or copied only with the written permission //
+// of TCC or in accordance with  the terms and conditions  stipulated in the //
+// agreement/contract under which the program(s) has been supplied.          //
+//                                                                           //
+///////////////////////////////////////////////////////////////////////////////
+//
+//  File:               IPL4asp_User_CtrlFunct.ttcn
+//  Rev:                R18N
+//  Prodnr:             CNL 113 531
+//  Updated:            2008-01-28
+//  Contact:            http://ttcn.ericsson.se
+//  Reference:          
+//
+// Template to declare the port control functions
+// Replace the <user port type> tag with your user port type and
+// the <user types module> tag with the module name in which the
+// user port type is declared.
+// Feel free to rename this module and file according to your
+// naming conventions.
+//
+
+module IPL4_user_CtrlFunct {
+
+  import from <user types module> all;
+  import from IPL4asp_Types all;
+  
+  external function f_IPL4_listen(
+    inout <user port type> portRef, 
+    in HostName locName,
+    in PortNumber locPort,
+    in ProtoTuple proto,
+    in OptionList options := {}
+  ) return Result; 
+
+  external function f_IPL4_connect(
+    inout <user port type> portRef,
+    in HostName remName,
+    in PortNumber remPort,
+    in HostName locName,
+    in PortNumber locPort,
+    in ConnectionId connId,
+    in ProtoTuple proto,
+    in OptionList options := {}
+  ) return Result;
+
+  external function f_IPL4_close(
+    inout <user port type> portRef,
+    in ConnectionId id,
+    in ProtoTuple proto := { unspecified := {} }
+  ) return Result;
+
+  external function f_IPL4_setUserData(
+    inout <user port type> portRef,
+    in ConnectionId id,
+    in UserData userData
+  ) return Result;
+
+  external function f_IPL4_getUserData(
+    inout <user port type> portRef,
+    in ConnectionId id,
+    out UserData userData
+  ) return Result;
+
+  external function f_IPL4_setGetMsgLen(
+    inout <user port type> portRef,
+    in ConnectionId id := -1,
+    inout f_IPL4_getMsgLen f,
+    in ro_integer msgLenArgs
+  );
+  
+} // module IPL4_user_CtrlFunct
+

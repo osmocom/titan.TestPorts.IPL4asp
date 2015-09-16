@@ -1,0 +1,374 @@
+///////////////////////////////////////////////////////////////////////////////
+//                                                                           //
+// Copyright Test Competence Center (TCC) ETH 2007                           //
+//                                                                           //
+// The copyright to the computer  program(s) herein  is the property of TCC. //
+// The program(s) may be used and/or copied only with the written permission //
+// of TCC or in accordance with  the terms and conditions  stipulated in the //
+// agreement/contract under which the program(s) has been supplied.          //
+//                                                                           //
+///////////////////////////////////////////////////////////////////////////////
+//
+//  File:               IPL4_demo_templates.ttcn
+//  Rev:                R18N
+//  Prodnr:             CNL 113 531
+//  Updated:            2008-11-11
+//  Contact:            http://ttcn.ericsson.se
+//  Reference:          
+
+module IPL4_demo_templates {
+
+  import from SIPmsg_Types all;
+  import from IPL4asp_Types all;
+  import from IPL4_demo_types all;
+  
+  template ASP_RecvFrom t_recvfrom := {
+    connId := ?,
+    remName := ?,
+    remPort := ?,
+    locName := ?,
+    locPort := ?,
+    proto := ?,
+    userData := ?,
+    msg := ?
+  }
+  
+  template ASP_Event t_res := {
+    result := ?
+  }
+  
+  template ASP_Event t_open := {
+    connOpened := ?
+  }
+
+  template ASP_Event t_sctpEvent := {
+    sctpEvent := ?
+  }
+  
+  template ASP_Event t_close := {
+    connClosed := ?
+  }
+     
+  template PDU_SIP PDU_template(charstring p_par) := {
+      request := INVITE_Request_template(p_par)
+  }
+  
+  // arbitrary SIP message for demo purposes
+  template PDU_SIP_Request INVITE_Request_template(charstring p_userOrTelephoneSubscriber) := {
+    requestLine := {
+        method := INVITE_E ,
+        requestUri := {
+            scheme := "sip",
+            userInfo := {
+                userOrTelephoneSubscriber := p_userOrTelephoneSubscriber,
+                password := omit
+            },
+            hostPort := {
+                host := "164.48.133.21",
+                portField := omit
+            },
+            urlParameters := omit,
+            headers := omit
+        },
+        sipVersion := "SIP/2.0"
+    },
+    msgHeader := {
+        accept := omit,
+        accept_contact := omit,
+        acceptEncoding := omit,
+        acceptLanguage := omit,
+        alertInfo := omit,
+        allow := omit,
+        allow_events := omit,
+        authenticationInfo := omit,
+        authorization := omit,
+        callId := {
+            fieldName := CALL_ID_E ,
+            callid := "9341AE62-BA3C-49DF-B937-0D967652848A@164.48.130.58"
+        },
+        callInfo := omit,
+        contact := {
+            fieldName := CONTACT_E ,
+            contactBody := {
+                contactAddresses := {
+                    {
+                        addressField := {
+                            nameAddr := {
+                                displayName := "Sinisa Marovic",
+                                addrSpec := {
+                                    scheme := "sip",
+                                    userInfo := {
+                                        userOrTelephoneSubscriber := "+385913654624",
+                                        password := omit
+                                    },
+                                    hostPort := {
+                                        host := "164.48.130.58",
+                                        portField := omit
+                                    },
+                                    urlParameters := omit,
+                                    headers := omit
+                                }
+                            }
+                        },
+                        contactParams := omit
+                    }
+                }
+            }
+        },
+        contentDisposition := omit,
+        contentEncoding := omit,
+        contentLanguage := omit,
+        contentLength := omit,
+        contentType := {
+            fieldName := CONTENT_TYPE_E ,
+            mediaType := "multipart/mixed;boundary=IBdkTtp50GZnROVflqy16AHXm"
+        },
+        cSeq := {
+            fieldName := CSEQ_E ,
+            seqNumber := 1,
+            method := "INVITE"
+        },
+        date := omit,
+        diversion := omit,
+        errorInfo := omit,
+        event := omit,
+        expires := omit,
+        fromField := {
+            fieldName := FROM_E ,
+            addressField := {
+                nameAddr := {
+                    displayName := "Sinisa Marovic",
+                    addrSpec := {
+                        scheme := "sip",
+                        userInfo := {
+                            userOrTelephoneSubscriber := "+385913654624",
+                            password := omit
+                        },
+                        hostPort := {
+                            host := "AQUIS195.ERICSSON.SE",
+                            portField := omit
+                        },
+                        urlParameters := omit,
+                        headers := omit
+                    }
+                }
+            },
+            fromParams := {
+                {
+                    id := "tag",
+                    paramValue := "0.859834"
+                }
+            }
+        },
+        inReplyTo := omit,
+        join := omit,
+        maxForwards := {
+            fieldName := MAX_FORWARDS_E ,
+            forwards := 70
+        },
+        mimeVersion := omit,
+        minExpires := omit,
+        min_SE := omit,
+        organization := omit,
+        p_access_network_info := omit,
+        passertedID := omit,
+        p_associated_uri := omit,
+        p_called_party_id := omit,
+        p_charging_function_address := omit,
+        p_charging_vector := omit,
+        p_DCS_trace_pty_id := omit,
+        p_DCS_OSPS := omit,
+        p_DCS_billing_info := omit,
+        p_DCS_LAES := omit,
+        p_DCS_redirect := omit,
+        p_Early_Media := omit,
+        p_media_auth := omit,
+        ppreferredID := omit,
+        p_visited_network_id := omit,
+        path := omit,
+        priority := omit,
+        privacy := omit,
+        proxyAuthenticate := omit,
+        proxyAuthorization := omit,
+        proxyRequire := omit,
+        rack := omit,
+        rseq := omit,
+        reason := omit,
+        recordRoute := omit,
+        reject_contact := omit,
+        refer_to := omit,
+        referred_by := omit,
+        replyTo := omit,
+        replaces := omit,
+        require := omit,
+        request_disp := omit,
+        retryAfter := omit,
+        route := omit,
+        security_client := omit,
+        security_server := omit,
+        security_verify := omit,
+        session_expires := omit,
+        historyInfo:=omit,
+        server := omit,
+        service_route := omit,
+        sip_ETag := omit,
+        sip_If_Match := omit,
+        subject := omit,
+        subscription_state := omit,
+        supported := {
+            fieldName := SUPPORTED_E,
+            optionsTags := {
+                "100rel"
+            }
+        },
+        timestamp := omit,
+        toField := {
+            fieldName := TO_E ,
+            addressField := {
+                nameAddr := {
+                    displayName := "Sinisa Marovic PSTN",
+                    addrSpec := {
+                        scheme := "sip",
+                        userInfo := {
+                            userOrTelephoneSubscriber := "+14600000000000",
+                            password := omit
+                        },
+                        hostPort := {
+                            host := "164.48.133.21",
+                            portField := omit
+                        },
+                        urlParameters := omit,
+                        headers := omit
+                    }
+                }
+            },
+            toParams := omit
+        },
+        unsupported := omit,
+        userAgent := {
+            fieldName := USER_AGENT_E ,
+            userAgentBody := {
+                "SJLabs-SJPhone/1.0"
+            }
+        },
+        via := {
+            fieldName := VIA_E ,
+            viaBody := {
+                {
+                    sentProtocol := {
+                        protocolName := "SIP",
+                        protocolVersion := "2.0",
+                        transport := "TCP"
+                    },
+                    sentBy := {
+                        host := "AQUIS195.ERICSSON.SE",
+                        portField := 5060
+                    },
+                    viaParams := {
+                        {
+                            id := "branch",
+                            paramValue := "z9hG4bK0.859834"
+                        }
+                    }
+                }
+            }
+        },
+        warning := omit,
+        wwwAuthenticate := omit,
+        undefinedHeader_List := omit,
+alert_mode:=omit,
+answer_mode:=omit,
+p_alerting_mode:=omit,
+p_answer_state:=omit,
+priv_answer_mode:=omit,
+refer_sub:=omit
+    },
+    messageBody := "--IBdkTtp50GZnROVflqy16AHXm\r\nContent-Type: application/SDP\r\n\r\nv=0\r\no=- 3283847141 1 IN IP4 164.48.130.58\r\ns=-\r\nc=IN IP4 164.48.130.58\r\nt=0 0\r\nm=audio 16384 RTP/AVP 0\r\na=rtpmap:0 PCMU/8000\r\n\r\n--IBdkTtp50GZnROVflqy16AHXm\r\nContent-Type: application/ISUP;version=ITU-T92+;base=itu-t92+\r\nContent-Disposition: signal;handling=optional\r\n\r\n" & char(0, 0, 0, 1) & "\b(" & char(0, 0, 0, 0) & "\n" & char(0, 0, 0, 3) & char(0, 0, 0, 2) & char(0, 0, 0, 0) & "\t" & char(0, 0, 0, 4) & char(0, 0, 0, /*14*/4) & "A" & char(0, 0, 0, 6) & "\a\b" & char(0, 0, 0, 0) & char(0, 0, 0, 5) & char(0, 0, 0, 16) & "\r\n--IBdkTtp50GZnROVflqy16AHXm--",
+    payload := omit
+  } // INVITE_Request_s_2    
+
+  template SIP_RecvFrom SIP_RecvFrom_template(charstring p_par) := {
+      connId :=?,                                        
+      remName := ?,
+      remPort := ?,
+      locName := ?,
+      locPort := ?,
+      proto := ?,
+      userData := ?,
+      msg := PDU_template(p_par)
+  }
+  
+ template ASP_Send t_ASP_SCTP_big(integer conn_id, integer sinfo_stream) :=
+  {
+    connId := conn_id,
+    proto := {sctp := {sinfo_stream,omit,omit,omit}},  
+    msg :=  'FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223301
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223302
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223303
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223304
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223305
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223306
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223307
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223308
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223309
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223310
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223311
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223312
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223313
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223314
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223315
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223316
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223317
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223318
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223319
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223320
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223321
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223322
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223323
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223324
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223325
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223326
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223327
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223328
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223329
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223330
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223331
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223332
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223333
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223334
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223335
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223336
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223337
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223338
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223339
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223340
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223341
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223342
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223343
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223344
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223345
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223346
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223347
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223348
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223349
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223350
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223351
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223352
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223353
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223354
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223355
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223356
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223357
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223358
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223359
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223360
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223361
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223362
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB111122223363
+             FFFF00009999AAAABBBB111122223333FFFF00009999AAAABBBB11112222336411'O
+  }
+   
+  
+  
+} // IPL4_demo_templates
+
