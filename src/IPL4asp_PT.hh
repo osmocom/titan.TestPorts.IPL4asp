@@ -10,7 +10,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
 //  File:               IPL4asp_PT.hh
-//  Rev:                R18N
+//  Rev:                R20C
 //  Prodnr:             CNL 113 531
 //  Contact:            http://ttcn.ericsson.se
 
@@ -220,6 +220,7 @@ typedef struct {
   char *ssl_cipher_list;           // ssl_cipher list restriction to apply
   char *ssl_password;              // password to decode the private key
   bool server;
+  bool sctpHandshakeCompletedBeforeDtls;
   SockAddr sa_client;
   SSL_Suport ssl_supp;
   SSL_STATES sslState;
@@ -310,6 +311,7 @@ struct GlobalConnOpts {
   int sctp_partial_delivery_event; /* YES, NO, NOT_SET */
   int sctp_adaptation_layer_event; /* YES, NO, NOT_SET */
   int sctp_authentication_event; /* YES, NO, NOT_SET */;
+  int sctp_sender_dry_event;
   int tcp_nodelay; /* YES, NO, NOT_SET */
   int sctp_nodelay; /* YES, NO, NOT_SET */
   int freebind;
@@ -348,6 +350,7 @@ struct GlobalConnOpts {
     sctp_partial_delivery_event ( YES ),
     sctp_adaptation_layer_event ( YES ),
     sctp_authentication_event ( NO ),
+    sctp_sender_dry_event ( NO ),
     tcp_nodelay (NOT_SET),
     //ssl_nodelay (NOT_SET),
     sctp_nodelay (NOT_SET),
@@ -374,6 +377,7 @@ public:
   void stoptls(const IPL4asp__Types::ConnectionId& connId, Socket__API__Definitions::Result& result);
   OCTETSTRING exportTlsKey(const IPL4asp__Types::ConnectionId& connId, const CHARSTRING& label, const OCTETSTRING& context, const INTEGER& keyLen);
   IPL4asp__Types::IPL4__SrtpKeysAndSalts exportSrtpKeysAndSalts(const IPL4asp__Types::ConnectionId& connId);
+  OCTETSTRING exportSctpKey(const IPL4asp__Types::ConnectionId& connId);
   CHARSTRING getLocalCertificateFingerprint(const IPL4asp__Types::IPL4__DigestMethods& method,const IPL4asp__Types::ConnectionId& connId);
   CHARSTRING getPeerCertificateFingerprint(const IPL4asp__Types::ConnectionId& connId, const IPL4asp__Types::IPL4__DigestMethods& method);
   CHARSTRING getSelectedSrtpProfile(const IPL4asp__Types::ConnectionId& connId);
@@ -425,8 +429,11 @@ protected:
   // Called to receive from the socket if data is available (select()).
   // Shall return with 0 if the peer is disconnected or with the number of bytes read.
   // If error occured, execution shall stop in the function by calling log_error()
+
   // The function passes the ssl error message as well.
   virtual int  receive_ssl_message_on_fd(int client_id, int* error_msg);
+  // Called to send message (SSL_write()).
+  virtual void write_ssl_message_on_fd(int* ret, int* rem, const int connId, const unsigned char *msg_ptr);
   // Called to send a message on the socket.
   // Shall return with 0 if the peer is disconnected or with the number of bytes written.
   // If error occured, execution shall stop in the function by calling log_error()
@@ -491,6 +498,7 @@ private:
   void Handle_Fd_Event_Readable(int fd);
   void handle_event(int fd, int connId, const void *buf);
   int getmsg(int fd, int connId, struct msghdr *msg,void *buf, size_t *buflen, ssize_t *nrp, size_t cmsglen);
+  int getmsg(int fd, int connId, ssize_t *nrp, int *ssl_err_msg);
   int ConnAdd(SockType type, int sock, SSL_TLS_Type ssl_tls_type,const IPL4asp__Types::OptionList  *options=NULL, int parentIdx = -1);
   int ConnDel(int connId);
   int setUserData(int id, int userData);
@@ -498,6 +506,13 @@ private:
   int getConnectionDetails(int id, IPL4asp__Types::IPL4__Param IPL4param, IPL4asp__Types::IPL4__ParamResult& IPL4paramResult);
   void sendError(Socket__API__Definitions::PortError code, const Socket__API__Definitions::ConnectionId& id,
       int os_error_code = 0);
+  void sendConnClosed(const Socket__API__Definitions::ConnectionId& id,
+      const CHARSTRING& remoteaddr,
+      const Socket__API__Definitions::PortNumber& remoteport,
+      const CHARSTRING& localaddr,
+      const Socket__API__Definitions::PortNumber& localport,
+      const Socket__API__Definitions::ProtoTuple& proto,
+      const int& userData);
   int sendNonBlocking(const Socket__API__Definitions::ConnectionId& id, sockaddr *sa,
       socklen_t saLen, SockType type, const OCTETSTRING& msg, Socket__API__Definitions::Result& result, const Socket__API__Definitions::ProtoTuple& protoTuple = (const Socket__API__Definitions::ProtoTuple&)Socket__API__Definitions::ProtoTuple().unspecified());
   bool getAndCheckSockType(int connId,
@@ -790,6 +805,10 @@ public:
       IPL4asp__PT_PROVIDER& portRef,
       const IPL4asp__Types::ConnectionId& connId);
 
+  friend OCTETSTRING f__IPL4__PROVIDER__exportSctpKey(
+      IPL4asp__PT_PROVIDER& portRef,
+      const IPL4asp__Types::ConnectionId& connId);
+
   friend CHARSTRING f__IPL4__PROVIDER__getLocalCertificateFingerprint(
       IPL4asp__PT_PROVIDER& portRef,
       const IPL4asp__Types::IPL4__DigestMethods& method,
@@ -831,7 +850,7 @@ public:
   static void *ssl_current_client; // current SSL object, used only during authentication
 
   bool ssl_actions_to_seed_PRNG(); // Seed the PRNG with enough random data
-  bool ssl_init_SSL();             // Initialize SSL libraries and create the SSL context
+  bool ssl_init_SSL(int);             // Initialize SSL libraries and create the SSL context
   bool ssl_init_SSL_ctx(SSL_CTX* in_ssl_ctx, int conn_id=-1); // Initialize each SSL context
   void ssl_log_SSL_info();         // Log the currently used SSL setting (debug)
   int  ssl_getresult(int result_code); // Fetch and log the SSL error code from I/O operation result codes

@@ -10,7 +10,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
 //  File:               IPL4_SIP_CtrFunctDef.cc
-//  Rev:                R18N
+//  Rev:                R20C
 //  Prodnr:             CNL 113 531
 //  Updated:            2008-01-25
 //  Contact:            http://ttcn.ericsson.se

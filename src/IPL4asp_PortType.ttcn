@@ -10,7 +10,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
 //  File:               IPL4asp_PortType.ttcn
-//  Rev:                R18N
+//  Rev:                R20C
 //  Prodnr:             CNL 113 531
 //  Updated:            2013-08-27
 //  Contact:            http://ttcn.ericsson.se
@@ -140,6 +140,12 @@ module IPL4asp_PortType {
     inout IPL4asp_PT portRef,
     in ConnectionId connId
   ) return IPL4_SrtpKeysAndSalts;
+  
+  // see RFC 5705 / section 4.
+  external function f_IPL4_exportSctpKey(
+    inout IPL4asp_PT portRef,
+    in ConnectionId connId
+  ) return octetstring;
 
   // returns the fingerprint of the locally configured certificate
   // ssl_certificate_chain_file testport parameter

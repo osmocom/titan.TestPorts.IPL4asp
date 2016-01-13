@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
- Copyright (c) 2015 Ericsson
+ Copyright (c) 2016 Ericsson
 
   The copyright to the computer  program(s) herein  is the property of Ericsson.
   The program(s) may be used and/or copied only with the written permission
@@ -10,7 +10,7 @@
 
    File:               IPL4_EIN_SCTP.tpd
    Description:        tpd project file
-   Rev:                R18N
+   Rev:                R20C
    Prodnr:             CNL 113 531
 
  -->

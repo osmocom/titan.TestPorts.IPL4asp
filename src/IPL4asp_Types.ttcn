@@ -10,7 +10,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
 //  File:               IPL4asp_Types.ttcn
-//  Rev:                R18N
+//  Rev:                R20C
 //  Prodnr:             CNL 113 531
 //  Contact:            http://ttcn.ericsson.se
 //  Reference:
@@ -421,7 +421,8 @@ type record SctpEventHandle {
   boolean sctp_shutdown_event optional,   // default is TRUE
   boolean sctp_partial_delivery_event optional,   // default is TRUE
   boolean sctp_adaptation_layer_event optional,   // default is TRUE
-  boolean sctp_authentication_event optional   // default is TRUE    
+  boolean sctp_authentication_event optional,   // default is TRUE    
+  boolean sctp_sender_dry_event optional // default is FALSE
 }
 
 type record Linger_opt {
