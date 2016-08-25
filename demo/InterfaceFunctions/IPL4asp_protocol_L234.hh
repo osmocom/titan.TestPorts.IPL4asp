@@ -10,7 +10,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
 //  File:               IPL4asp_protocolL234.hh
-//  Rev:                R20C
+//  Rev:                R21B
 //  Prodnr:             CNL 113 531
 //  Updated:            2008-01-30
 //  Contact:            http://ttcn.ericsson.se

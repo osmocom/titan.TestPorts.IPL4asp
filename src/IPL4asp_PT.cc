@@ -10,7 +10,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
 //  File:               IPL4asp_PT.cc
-//  Rev:                R20C
+//  Rev:                R21B
 //  Prodnr:             CNL 113 531
 //  Contact:            http://ttcn.ericsson.se
 //  Reference:
@@ -1089,6 +1089,10 @@ void IPL4asp__PT_PROVIDER::Handle_Fd_Event_Readable(int fd)
 #endif
         ) and (sockList[connId].ssl_tls_type != NONE)) {
         sendConnClosed(connId, asp.remName(), asp.remPort(), asp.locName(), asp.locPort(), asp.proto(), asp.userData());
+          if (ConnDel(connId) == -1) {
+            IPL4_DEBUG("IPL4asp__PT_PROVIDER::Handle_Fd_Event_Readable: ConnDel failed");
+            sendError(PortError::ERROR__SOCKET, connId);
+          }
       }
 
       if(len > 0)
@@ -3934,7 +3938,7 @@ CHARSTRING IPL4_get_certificate_fingerprint(const X509 *x509, const IPL4__Digest
 }
 #endif
 
-CHARSTRING IPL4asp__PT_PROVIDER::getLocalCertificateFingerprint(const IPL4__DigestMethods& method,const ConnectionId& connId) {
+CHARSTRING IPL4asp__PT_PROVIDER::getLocalCertificateFingerprint(const IPL4__DigestMethods& method,const ConnectionId& connId, const CHARSTRING& certificate__file) {
 
 #ifdef IPL4_USE_SSL
   if(!ssl_init_SSL(connId)) {
@@ -3944,7 +3948,9 @@ CHARSTRING IPL4asp__PT_PROVIDER::getLocalCertificateFingerprint(const IPL4__Dige
   BIO* certificate_bio = BIO_new(BIO_s_file());
 
   const char* cf=NULL;
-  if(ssl_cert_per_conn && isConnIdValid(connId) && sockList[(int)connId].ssl_certificate_file){
+  if(certificate__file.lengthof()!=0){
+    cf=(const char*)certificate__file;
+  }else if(ssl_cert_per_conn && isConnIdValid(connId) && sockList[(int)connId].ssl_certificate_file){
     cf=sockList[(int)connId].ssl_certificate_file;
   } else {
     cf=ssl_certificate_file;
@@ -5273,9 +5279,10 @@ OCTETSTRING f__IPL4__PROVIDER__exportSctpKey(
 CHARSTRING f__IPL4__PROVIDER__getLocalCertificateFingerprint(
     IPL4asp__PT_PROVIDER& portRef,
     const IPL4__DigestMethods& method,
-    const ConnectionId& connId)
+    const ConnectionId& connId,
+    const CHARSTRING& certificate__file)
 {
-  return portRef.getLocalCertificateFingerprint(method,connId);
+  return portRef.getLocalCertificateFingerprint(method,connId,certificate__file);
 }
 
 CHARSTRING f__IPL4__PROVIDER__getPeerCertificateFingerprint(
@@ -5455,9 +5462,10 @@ OCTETSTRING f__IPL4__exportSctpKey(
 CHARSTRING f__IPL4__getLocalCertificateFingerprint(
     IPL4asp__PT& portRef,
     const IPL4__DigestMethods& method,
-    const ConnectionId& connId)
+    const ConnectionId& connId,
+    const CHARSTRING& certificate__file)
 {
-  return portRef.getLocalCertificateFingerprint(method,connId);
+  return portRef.getLocalCertificateFingerprint(method,connId,certificate__file);
 }
 
 CHARSTRING f__IPL4__getPeerCertificateFingerprint(
@@ -6006,6 +6014,11 @@ int IPL4asp__PT_PROVIDER::receive_ssl_message_on_fd(int client_id, int* error_ms
     } else {
       recv_tb->increase_length(messageLength);
       total_read+=messageLength;
+    }
+    if(sockList[client_id].type == IPL4asp_UDP) {
+        // For UDP, we only read one packet at a time (and hope that the buffer was large enough)
+        IPL4_DEBUG( "Returning early for UDP/DTLS");
+        return total_read;
     }
   }
 //  ssl_current_client=NULL;

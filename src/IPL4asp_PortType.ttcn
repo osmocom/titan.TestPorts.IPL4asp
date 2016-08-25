@@ -10,7 +10,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
 //  File:               IPL4asp_PortType.ttcn
-//  Rev:                R20C
+//  Rev:                R21B
 //  Prodnr:             CNL 113 531
 //  Updated:            2013-08-27
 //  Contact:            http://ttcn.ericsson.se
@@ -152,7 +152,8 @@ module IPL4asp_PortType {
   external function f_IPL4_getLocalCertificateFingerprint(
     inout IPL4asp_PT portRef,
     in IPL4_DigestMethods method,
-    in ConnectionId connId := -1
+    in ConnectionId connId := -1,
+    in charstring certificate_file := ""
   ) return charstring;
   
   // returns the fingerprint of the peer certificate

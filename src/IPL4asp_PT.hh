@@ -10,7 +10,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
 //  File:               IPL4asp_PT.hh
-//  Rev:                R20C
+//  Rev:                R21B
 //  Prodnr:             CNL 113 531
 //  Contact:            http://ttcn.ericsson.se
 
@@ -378,7 +378,7 @@ public:
   OCTETSTRING exportTlsKey(const IPL4asp__Types::ConnectionId& connId, const CHARSTRING& label, const OCTETSTRING& context, const INTEGER& keyLen);
   IPL4asp__Types::IPL4__SrtpKeysAndSalts exportSrtpKeysAndSalts(const IPL4asp__Types::ConnectionId& connId);
   OCTETSTRING exportSctpKey(const IPL4asp__Types::ConnectionId& connId);
-  CHARSTRING getLocalCertificateFingerprint(const IPL4asp__Types::IPL4__DigestMethods& method,const IPL4asp__Types::ConnectionId& connId);
+  CHARSTRING getLocalCertificateFingerprint(const IPL4asp__Types::IPL4__DigestMethods& method,const IPL4asp__Types::ConnectionId& connId, const CHARSTRING& certificate__file);
   CHARSTRING getPeerCertificateFingerprint(const IPL4asp__Types::ConnectionId& connId, const IPL4asp__Types::IPL4__DigestMethods& method);
   CHARSTRING getSelectedSrtpProfile(const IPL4asp__Types::ConnectionId& connId);
 //  bool setDtlsSrtpProfiles(const IPL4asp__Types::ConnectionId& connId,const IPL4asp__Types::OptionList& options);
