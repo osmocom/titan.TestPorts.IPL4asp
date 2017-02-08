@@ -10,7 +10,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
 //  File:               IPL4asp_PT.hh
-//  Rev:                R23B01
+//  Rev:                R23C
 //  Prodnr:             CNL 113 531
 //  Contact:            http://ttcn.ericsson.se
 

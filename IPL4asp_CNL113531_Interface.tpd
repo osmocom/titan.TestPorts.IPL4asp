@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
- Copyright (c) 2016 Ericsson
+ Copyright (c) 2017 Ericsson
 
   The copyright to the computer  program(s) herein  is the property of Ericsson.
   The program(s) may be used and/or copied only with the written permission
@@ -10,7 +10,7 @@
 
    File:               IPL4asp_CNL113531_Interface.tpd
    Description:        tpd project file
-   Rev:                R21B
+   Rev:                R23C
    Prodnr:             CNL 113 531
 
  -->
@@ -21,9 +21,9 @@
     <ReferencedProject name="TCCUsefulFunctions_CNL113472_Interface" projectLocationURI="../../Libraries/TCCUsefulFunctions_CNL113472/TCCUsefulFunctions_CNL113472_Interface.tpd"/>
   </ReferencedProjects>
   <Files>
-    <FileResource projectRelativePath="IPL4asp_Functions.ttcn" relativeURI="demo/InterfaceFunctions/IPL4asp_Functions.ttcn"/>
-    <FileResource projectRelativePath="IPL4asp_discovery.cc" relativeURI="demo/InterfaceFunctions/IPL4asp_discovery.cc"/>
-    <FileResource projectRelativePath="IPL4asp_protocol_L234.hh" relativeURI="demo/InterfaceFunctions/IPL4asp_protocol_L234.hh"/>
+    <FileResource projectRelativePath="IPL4asp_Functions.ttcn" relativeURI="src/IPL4asp_Functions.ttcn"/>
+    <FileResource projectRelativePath="IPL4asp_discovery.cc" relativeURI="src/IPL4asp_discovery.cc"/>
+    <FileResource projectRelativePath="IPL4asp_protocol_L234.hh" relativeURI="src/IPL4asp_protocol_L234.hh"/>
   </Files>
   <ActiveConfiguration>Default</ActiveConfiguration>
   <Configurations>

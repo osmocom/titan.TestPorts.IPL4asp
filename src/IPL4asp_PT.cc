@@ -10,7 +10,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
 //  File:               IPL4asp_PT.cc
-//  Rev:                R23B01
+//  Rev:                R23C
 //  Prodnr:             CNL 113 531
 //  Contact:            http://ttcn.ericsson.se
 //  Reference:
@@ -5448,6 +5448,15 @@ Result f__IPL4__close(
     const ConnectionId& connId,
     const ProtoTuple& proto)
 {
+  if(TTCN_Logger::log_this_event(TTCN_PORTEVENT)){
+    TTCN_Logger::begin_event(TTCN_PORTEVENT);
+    TTCN_Logger::log_event("%s: f__IPL4__close: ", portRef.get_name());
+    TTCN_Logger::log_event(" proto ");
+    proto.log();
+    TTCN_Logger::log_event(" connId ");
+    connId.log();
+    TTCN_Logger::end_event();
+  }
   return f__IPL4__PROVIDER__close(portRef, connId, proto);
 } // f__IPL4__close
 
@@ -5538,6 +5547,14 @@ Result f__IPL4__StartTLS(
     const ConnectionId& connId,
     const BOOLEAN& server__side)
 {
+  if(TTCN_Logger::log_this_event(TTCN_PORTEVENT)){
+    TTCN_Logger::begin_event(TTCN_PORTEVENT);
+    TTCN_Logger::log_event("%s: f__IPL4__StartTLS: ", portRef.get_name());
+    connId.log();
+    TTCN_Logger::log_event(" server_side: ");
+    server__side.log();
+    TTCN_Logger::end_event();
+  }
   return f__IPL4__PROVIDER__StartTLS(portRef,connId,server__side);
 }
 
@@ -5545,6 +5562,12 @@ Result f__IPL4__StopTLS(
     IPL4asp__PT& portRef,
     const ConnectionId& connId)
 {
+  if(TTCN_Logger::log_this_event(TTCN_PORTEVENT)){
+    TTCN_Logger::begin_event(TTCN_PORTEVENT);
+    TTCN_Logger::log_event("%s: f__IPL4__StopTLS: ", portRef.get_name());
+    connId.log();
+    TTCN_Logger::end_event();
+  }
   return f__IPL4__PROVIDER__StopTLS(portRef,connId);
 }
 
@@ -6402,7 +6425,11 @@ int ssl_generate_cookie_callback(SSL *ssl, unsigned char *cookie, unsigned int *
 }
 
 // returns 1 on success, 0 on fail
-int ssl_verify_cookie_callback(SSL *ssl, const unsigned char *cookie,
+int ssl_verify_cookie_callback(SSL *ssl, 
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L 
+const 
+#endif
+    unsigned char *cookie,
     unsigned int cookie_len) {
 
 #ifdef SRTP_AES128_CM_SHA1_80
