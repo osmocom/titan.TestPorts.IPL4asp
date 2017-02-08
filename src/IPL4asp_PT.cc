@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //                                                                           //
-// Copyright Test Competence Center (TCC) ETH                                //
+// Copyright Test Competence Center (TCC) ETH 2016                           //
 //                                                                           //
 // The copyright to the computer  program(s) herein  is the property of TCC. //
 // The program(s) may be used and/or copied only with the written permission //
@@ -10,7 +10,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
 //  File:               IPL4asp_PT.cc
-//  Rev:                R21B
+//  Rev:                R23B
 //  Prodnr:             CNL 113 531
 //  Contact:            http://ttcn.ericsson.se
 //  Reference:
@@ -293,7 +293,9 @@ IPL4asp__PT_PROVIDER::IPL4asp__PT_PROVIDER(const char *par_port_name)
   defaultLocPort = 9999;
   backlog = SOMAXCONN;
   defaultGetMsgLen = simpleGetMsgLen;
+  defaultGetMsgLen_forConnClosedEvent = simpleGetMsgLen; // by default we pass up to TTCN the remaining buffer content on connClosed
   defaultMsgLenArgs = new ro__integer(NULL_VALUE);
+  defaultMsgLenArgs_forConnClosedEvent = new ro__integer(NULL_VALUE);
   pureNonBlocking = false;
   poll_timeout = -1;
   max_num_of_poll =-1;
@@ -363,6 +365,7 @@ IPL4asp__PT_PROVIDER::~IPL4asp__PT_PROVIDER()
 {
   IPL4_DEBUG("IPL4asp__PT_PROVIDER::~IPL4asp__PT_PROVIDER: enter");
   delete defaultMsgLenArgs;
+  delete defaultMsgLenArgs_forConnClosedEvent;
   // now SSL context can be removed
 #ifdef IPL4_USE_SSL
   if (ssl_ctx!=NULL) {
@@ -732,6 +735,11 @@ void IPL4asp__PT_PROVIDER::set_parameter(const char *parameter_name,
     ssl_reconnect_delay = atoi ( parameter_value );
   }
 #endif
+ else if (!strcasecmp(parameter_name, "noDelay")) {
+   if (!strcasecmp(parameter_value,"YES"))
+      globalConnOpts.tcp_nodelay = GlobalConnOpts::YES;
+      globalConnOpts.sctp_nodelay = GlobalConnOpts::YES;
+  }
   // else if ( next param ) ...
 } // IPL4asp__PT_PROVIDER::set_parameter
 
@@ -1088,6 +1096,7 @@ void IPL4asp__PT_PROVIDER::Handle_Fd_Event_Readable(int fd)
         || ssl_err_msg == SSL_ERROR_ZERO_RETURN
 #endif
         ) and (sockList[connId].ssl_tls_type != NONE)) {
+        reportRemainingData_beforeConnClosed(connId, asp.remName(), asp.remPort(), asp.locName(), asp.locPort(), asp.proto(), asp.userData());
         sendConnClosed(connId, asp.remName(), asp.remPort(), asp.locName(), asp.locPort(), asp.proto(), asp.userData());
           if (ConnDel(connId) == -1) {
             IPL4_DEBUG("IPL4asp__PT_PROVIDER::Handle_Fd_Event_Readable: ConnDel failed");
@@ -1248,6 +1257,7 @@ void IPL4asp__PT_PROVIDER::Handle_Fd_Event_Readable(int fd)
         }
 #endif
 
+        reportRemainingData_beforeConnClosed(connId, asp.remName(), asp.remPort(), asp.locName(), asp.locPort(), asp.proto(), asp.userData());
         sendConnClosed(connId, asp.remName(), asp.remPort(), asp.locName(), asp.locPort(), asp.proto(), asp.userData());
 
         if(!dontCloseConn) {
@@ -2325,6 +2335,7 @@ int IPL4asp__PT_PROVIDER::sendNonBlocking(const ConnectionId& connId, sockaddr *
         IPL4_DEBUG("IPL4asp__PT_PROVIDER::sendNonBlocking: SetNameAndPort failed");
         setResult(result,PortError::ERROR__HOSTNAME, (int)connId);
       }*/
+      reportRemainingData_beforeConnClosed(connId, event.connClosed().remName(), event.connClosed().remPort(), event.connClosed().locName(), event.connClosed().locPort(), event.connClosed().proto(), event.connClosed().userData());
       if (ConnDel((int)connId) == -1) {
         IPL4_DEBUG("IPL4asp__PT_PROVIDER::sendNonBlocking: ConnDel failed");
         setResult(result,PortError::ERROR__SOCKET, (int)connId);
@@ -2405,6 +2416,9 @@ int IPL4asp__PT_PROVIDER::sendNonBlocking(const ConnectionId& connId, sockaddr *
           IPL4_DEBUG("IPL4asp__PT_PROVIDER::sendNonBlocking: SetNameAndPort failed");
           setResult(result,PortError::ERROR__HOSTNAME, (int)connId);
         }*/
+
+        reportRemainingData_beforeConnClosed(connId, event.connClosed().remName(), event.connClosed().remPort(), event.connClosed().locName(), event.connClosed().locPort(), event.connClosed().proto(), event.connClosed().userData());
+
         if (ConnDel((int)connId) == -1) {
           IPL4_DEBUG("IPL4asp__PT_PROVIDER::sendNonBlocking: ConnDel failed");
           setResult(result,PortError::ERROR__SOCKET, (int)connId);
@@ -3183,9 +3197,12 @@ int IPL4asp__PT_PROVIDER::ConnAdd(SockType type, int sock, SSL_TLS_Type ssl_tls_
   if (parentIdx != -1) { // inherit the listener's properties
     sockList[i].userData = sockList[parentIdx].userData;
     sockList[i].getMsgLen = sockList[parentIdx].getMsgLen;
+    sockList[i].getMsgLen_forConnClosedEvent = sockList[parentIdx].getMsgLen_forConnClosedEvent;
     sockList[i].parentIdx = parentIdx;
     sockList[i].msgLenArgs =
         new ro__integer(*sockList[parentIdx].msgLenArgs);
+    sockList[i].msgLenArgs_forConnClosedEvent =
+        new ro__integer(*sockList[parentIdx].msgLenArgs_forConnClosedEvent);
     sockList[i].ssl_supp.SSLv2=sockList[parentIdx].ssl_supp.SSLv2;
     sockList[i].ssl_supp.SSLv3=sockList[parentIdx].ssl_supp.SSLv3;
     sockList[i].ssl_supp.TLSv1=sockList[parentIdx].ssl_supp.TLSv1;
@@ -3224,8 +3241,10 @@ int IPL4asp__PT_PROVIDER::ConnAdd(SockType type, int sock, SSL_TLS_Type ssl_tls_
   } else { // otherwise initialize to defaults
     sockList[i].userData = 0;
     sockList[i].getMsgLen = defaultGetMsgLen;
+    sockList[i].getMsgLen_forConnClosedEvent = defaultGetMsgLen_forConnClosedEvent;
     sockList[i].parentIdx = -1;
     sockList[i].msgLenArgs = new ro__integer(*defaultMsgLenArgs);
+    sockList[i].msgLenArgs_forConnClosedEvent = new ro__integer(*defaultMsgLenArgs_forConnClosedEvent);
     sockList[i].ssl_supp.SSLv2=globalConnOpts.ssl_supp.SSLv2;
     sockList[i].ssl_supp.SSLv3=globalConnOpts.ssl_supp.SSLv3;
     sockList[i].ssl_supp.TLSv1=globalConnOpts.ssl_supp.TLSv1;
@@ -3242,8 +3261,7 @@ int IPL4asp__PT_PROVIDER::ConnAdd(SockType type, int sock, SSL_TLS_Type ssl_tls_
       set_ssl_supp_option(i,*options);
     }
   }
-  if (sockList[i].msgLenArgs == NULL)
-    return -1;
+
   sockList[i].msgLen = -1;
 
   fd2IndexMap[sock] = i;
@@ -3345,13 +3363,14 @@ void SockDesc::clear()
 {
   for (unsigned int i = 0; i < cnt; ++i) delete buf[i];
   cnt = 0;
-  if (buf != 0) { Free(buf); buf = 0; }
-  if (assocIdList != 0) { Free(assocIdList); assocIdList = 0; }
-  if (msgLenArgs != 0) { delete msgLenArgs; msgLenArgs = 0; }
-  if (localaddr != 0) { delete localaddr; localaddr = 0; }
-  if (localport != 0) { delete localport; localport = 0; }
-  if (remoteaddr != 0) { delete remoteaddr; remoteaddr = 0; }
-  if (remoteport != 0) { delete remoteport; remoteport = 0; }
+  Free(buf); buf = 0;
+  Free(assocIdList); assocIdList = 0;
+  delete msgLenArgs; msgLenArgs = 0;
+  delete msgLenArgs_forConnClosedEvent; msgLenArgs_forConnClosedEvent = 0;
+  delete localaddr; localaddr = 0;
+  delete localport; localport = 0;
+  delete remoteaddr; remoteaddr = 0;
+  delete remoteport; remoteport = 0;
 
   sock = SOCK_NONEX;
   msgLen = -1;
@@ -3528,6 +3547,51 @@ void IPL4asp__PT_PROVIDER::sendError(PortError code, const ConnectionId& id,
   }
   incoming_message(event);
 } // IPL4asp__PT_PROVIDER::sendError
+
+void IPL4asp__PT_PROVIDER::reportRemainingData_beforeConnClosed(const ConnectionId& id,
+    const CHARSTRING& remoteaddr,
+    const PortNumber& remoteport,
+    const CHARSTRING& localaddr,
+    const PortNumber& localport,
+    const ProtoTuple& proto,
+    const int& userData)
+{
+  // check if the remaining data is to be reported to the TTCN layer
+  if((sockList[id].getMsgLen_forConnClosedEvent != NULL) &&
+      (sockList[id].buf != NULL)) {
+    bool msgFound = false;
+    do {
+      OCTETSTRING oct;
+      (*sockList[id].buf)->get_string(oct);
+      sockList[id].msgLen = sockList[id].getMsgLen_forConnClosedEvent.invoke(oct,*sockList[id].msgLenArgs_forConnClosedEvent);
+
+      msgFound = (sockList[id].msgLen > 0) && (sockList[id].msgLen <= (int)sockList[id].buf[0]->get_len());
+      if (msgFound) {
+        IPL4_DEBUG("IPL4asp__PT_PROVIDER::reportRemainingData_beforeConnClosed: message length: (%d/%d bytes)\n",
+            sockList[id].msgLen, (int)sockList[id].buf[0]->get_len());
+        ASP__RecvFrom asp;
+        asp.connId() = id;
+        asp.userData() = userData;
+        asp.remName() = remoteaddr;
+        asp.remPort() = remoteport;
+        asp.locName() = localaddr;
+        asp.locPort() = localport;
+        asp.proto() = proto;
+        asp.msg() = OCTETSTRING(sockList[id].msgLen, sockList[id].buf[0]->get_data());
+        sockList[id].buf[0]->set_pos((size_t)sockList[id].msgLen);
+        sockList[id].buf[0]->cut();
+        if(lazy_conn_id_level && sockListCnt==1 && lonely_conn_id!=-1){
+          asp.connId()=-1;
+        }
+        incoming_message(asp);
+        sockList[id].msgLen = -1;
+      }
+    } while (msgFound && sockList[id].buf[0]->get_len() != 0);
+    if (sockList[id].buf[0]->get_len() != 0)
+      IPL4_DEBUG("IPL4asp__PT_PROVIDER::reportRemainingData_beforeConnClosed: incomplete message remained (%d bytes)\n",
+          (int)sockList[id].buf[0]->get_len());
+  }
+}
 
 void IPL4asp__PT_PROVIDER::sendConnClosed(const ConnectionId& id,
     const CHARSTRING& remoteaddr,
@@ -4053,6 +4117,31 @@ void f__IPL4__PROVIDER__setGetMsgLen(IPL4asp__PT_PROVIDER& portRef,
   }
 } // f__IPL4__PROVIDER__setGetMsgLen
 
+
+void f__IPL4__PROVIDER__setGetMsgLen__forConnClosedEvent(IPL4asp__PT_PROVIDER& portRef,
+    const ConnectionId& connId, f__IPL4__getMsgLen& f,
+    const ro__integer& msgLenArgs)
+{
+  portRef.testIfInitialized();
+  if ((int)connId == -1) {
+    portRef.defaultGetMsgLen_forConnClosedEvent = f;
+    delete portRef.defaultMsgLenArgs_forConnClosedEvent;
+    portRef.defaultMsgLenArgs_forConnClosedEvent = new Socket__API__Definitions::ro__integer(msgLenArgs);
+    IPL4_PORTREF_DEBUG(portRef, "f__IPL4__PROVIDER__setGetMsgLen_forConnClosedEvent: "
+        "The default getMsgLen_forConnClosedEvent fn is modified");
+  } else {
+    if (!portRef.isConnIdValid(connId)) {
+      IPL4_PORTREF_DEBUG(portRef, "IPL4asp__PT_PROVIDER::f__IPL4__PROVIDER__setGetMsgLen_forConnClosedEvent: "
+          "invalid connId: %i", (int)connId);
+      return;
+    }
+    IPL4_PORTREF_DEBUG(portRef, "f__IPL4__PROVIDER__setGetMsgLen_forConnClosedEvent: "
+        "getMsgLen_forConnClosedEvent fn for connection %d is modified", (int)connId);
+    portRef.sockList[(int)connId].getMsgLen_forConnClosedEvent = f;
+    delete portRef.sockList[(int)connId].msgLenArgs_forConnClosedEvent;
+    portRef.sockList[(int)connId].msgLenArgs_forConnClosedEvent = new Socket__API__Definitions::ro__integer(msgLenArgs);
+  }
+} // f__IPL4__PROVIDER__setGetMsgLen_forConnClosedEvent
 
 
 Result f__IPL4__PROVIDER__listen(IPL4asp__PT_PROVIDER& portRef, const HostName& locName,
@@ -5387,6 +5476,15 @@ void f__IPL4__setGetMsgLen(
 {
   f__IPL4__PROVIDER__setGetMsgLen(portRef, connId, f, msgLenArgs);
 } // f__IPL4__setGetMsgLen
+
+void f__IPL4__setGetMsgLen__forConnClosedEvent(
+    IPL4asp__PT& portRef,
+    const ConnectionId& connId,
+    f__IPL4__getMsgLen& f,
+    const ro__integer& msgLenArgs)
+{
+  f__IPL4__PROVIDER__setGetMsgLen__forConnClosedEvent(portRef, connId, f, msgLenArgs);
+} // f__IPL4__setGetMsgLen_forConnClosedEvent
 
 Result f__IPL4__send(
     IPL4asp__PT& portRef,
@@ -7225,6 +7323,7 @@ int IPL4asp__PT_PROVIDER::ConnAddEin(SockType type,
   if (parentIdx != -1) { // inherit the listener's properties
     sockList[i].userData = sockList[parentIdx].userData;
     sockList[i].getMsgLen = sockList[parentIdx].getMsgLen;
+    sockList[i].getMsgLen_forConnClosedEvent = sockList[parentIdx].getMsgLen_forConnClosedEvent;
     sockList[i].parentIdx = parentIdx;
     sockList[parentIdx].ref_count++;
     sockList[i].msgLenArgs =
@@ -7232,6 +7331,7 @@ int IPL4asp__PT_PROVIDER::ConnAddEin(SockType type,
   } else { // otherwise initialize to defaults
     sockList[i].userData = 0;
     sockList[i].getMsgLen = defaultGetMsgLen;
+    sockList[i].getMsgLen_forConnClosedEvent = defaultGetMsgLen_forConnClosedEvent;
     sockList[i].parentIdx = -1;
     sockList[i].msgLenArgs = new ro__integer(*defaultMsgLenArgs);
   }
@@ -7342,7 +7442,6 @@ USHORT_T  IPL4asp__PT_PROVIDER::SctpInitializeConf(
 
   } else if(EINSS7_00SCTP_NTF_OK!=returnCode){
     Result result(OMIT_VALUE, OMIT_VALUE, OMIT_VALUE, OMIT_VALUE);
-    ConnDelEin(mappingKey);
     EINSS7_00SctpDestroyReq(sctpEndpointId);
     result.errorCode()=PortError::ERROR__GENERAL;
     result.os__error__code()=returnCode;
@@ -7351,6 +7450,16 @@ USHORT_T  IPL4asp__PT_PROVIDER::SctpInitializeConf(
     ASP__Event event;
     event.result() = result;
     incoming_message(event);
+    ProtoTuple proto;
+    proto.sctp()=SctpTuple(OMIT_VALUE, OMIT_VALUE, OMIT_VALUE, OMIT_VALUE);
+    sendConnClosed(mappingKey,
+        *(sockList[mappingKey].remoteaddr),
+        *(sockList[mappingKey].remoteport),
+        *(sockList[mappingKey].localaddr),
+        localPort,
+        proto, sockList[mappingKey].userData);
+    
+    ConnDelEin(mappingKey);
     return RETURN_OK;
   }
 
@@ -7389,7 +7498,6 @@ USHORT_T  IPL4asp__PT_PROVIDER::SctpInitializeConf(
 
     if(EINSS7_00SCTP_OK!=req_result){
       Result result(OMIT_VALUE, OMIT_VALUE, OMIT_VALUE, OMIT_VALUE);
-      ConnDelEin(mappingKey);
       EINSS7_00SctpDestroyReq(sctpEndpointId);
       result.errorCode()=PortError::ERROR__GENERAL;
       result.os__error__code()=returnCode;
@@ -7398,6 +7506,15 @@ USHORT_T  IPL4asp__PT_PROVIDER::SctpInitializeConf(
       ASP__Event event;
       event.result() = result;
       incoming_message(event);
+      ProtoTuple proto;
+      proto.sctp()=SctpTuple(OMIT_VALUE, OMIT_VALUE, OMIT_VALUE, OMIT_VALUE);
+      sendConnClosed(mappingKey,
+          *(sockList[mappingKey].remoteaddr),
+          *(sockList[mappingKey].remoteport),
+          *(sockList[mappingKey].localaddr),
+          localPort,
+          proto, sockList[mappingKey].userData);
+      ConnDelEin(mappingKey);
     }
 
   } else {
@@ -7424,7 +7541,6 @@ USHORT_T  IPL4asp__PT_PROVIDER::SctpAssociateConf(
 
   if(EINSS7_00SCTP_NTF_OK!=returnCode){
     Result result(OMIT_VALUE, OMIT_VALUE, OMIT_VALUE, OMIT_VALUE);
-    ConnDelEin(ulpKey);
     EINSS7_00SctpDestroyReq(sockList[ulpKey].endpoint_id);
     result.errorCode()=PortError::ERROR__GENERAL;
     result.os__error__code()=returnCode;
@@ -7433,6 +7549,16 @@ USHORT_T  IPL4asp__PT_PROVIDER::SctpAssociateConf(
     ASP__Event event;
     event.result() = result;
     incoming_message(event);
+    ProtoTuple proto;
+    proto.sctp()=SctpTuple(OMIT_VALUE, OMIT_VALUE, OMIT_VALUE, OMIT_VALUE);
+    sendConnClosed(ulpKey,
+        *(sockList[ulpKey].remoteaddr),
+        *(sockList[ulpKey].remoteport),
+        *(sockList[ulpKey].localaddr),
+        *(sockList[ulpKey].localport),
+        proto, sockList[ulpKey].userData);
+
+    ConnDelEin(ulpKey);
     return RETURN_OK;
   }
   sockList[ulpKey].sock=assocId;
@@ -7667,7 +7793,6 @@ USHORT_T  IPL4asp__PT_PROVIDER::SctpCommLostInd(
 
     if(EINSS7_00SCTP_OK!=req_result){
       Result result(OMIT_VALUE, OMIT_VALUE, OMIT_VALUE, OMIT_VALUE);
-      ConnDelEin(ulpKey);
       EINSS7_00SctpDestroyReq(sockList[ulpKey].endpoint_id);
       result.errorCode()=PortError::ERROR__GENERAL;
       result.os__error__code()=req_result;
@@ -7676,6 +7801,15 @@ USHORT_T  IPL4asp__PT_PROVIDER::SctpCommLostInd(
       ASP__Event event;
       event.result() = result;
       incoming_message(event);
+      ProtoTuple proto;
+      proto.sctp()=SctpTuple(OMIT_VALUE, OMIT_VALUE, OMIT_VALUE, OMIT_VALUE);
+      sendConnClosed(ulpKey,
+          *(sockList[ulpKey].remoteaddr),
+          *(sockList[ulpKey].remoteport),
+          *(sockList[ulpKey].localaddr),
+          *(sockList[ulpKey].localport),
+          proto, sockList[ulpKey].userData);
+      ConnDelEin(ulpKey);
     }
 
     return RETURN_OK;

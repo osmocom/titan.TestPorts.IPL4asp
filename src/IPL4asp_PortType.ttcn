@@ -10,11 +10,11 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
 //  File:               IPL4asp_PortType.ttcn
-//  Rev:                R21B
+//  Rev:                R23B
 //  Prodnr:             CNL 113 531
 //  Updated:            2013-08-27
 //  Contact:            http://ttcn.ericsson.se
-//  Reference:          
+//  Reference:
 
 module IPL4asp_PortType {
 
@@ -92,7 +92,7 @@ module IPL4asp_PortType {
     in IPL4_Param IPL4param,
     out IPL4_ParamResult IPL4paramResult  
   ) return Result;
-  
+
   external function f_IPL4_send(
     inout IPL4asp_PT portRef,
     in ASP_Send asp,
@@ -104,13 +104,13 @@ module IPL4asp_PortType {
     in ASP_SendTo asp,
     out integer sent_octets
   ) return Result;
-  
+
   external function f_IPL4_StartTLS(
     inout IPL4asp_PT portRef,
     in ConnectionId connId,
     in boolean server_side:=false
   ) return Result;
-  
+
   // stops the TLS layer of the connId. TCP/UDP layer will stay available
   external function f_IPL4_StopTLS(
     inout IPL4asp_PT portRef,
@@ -124,7 +124,7 @@ module IPL4asp_PortType {
     in ConnectionId connId,
     in charstring dtlsSrtpProfiles
   ) return Result;*/
-  
+
   // exports pl_keyLen bytes of TLS encrypted data using the pl_label and pl_context
   // can be called after the SSL/TLS handshake is done (the shared secret is available)
   external function f_IPL4_exportTlsKey(
@@ -134,13 +134,13 @@ module IPL4asp_PortType {
     in octetstring pl_context,
     in integer pl_keyLen
   ) return octetstring;
-  
+
   // see RFC 5705 / section 4.
   external function f_IPL4_exportSrtpKeysAndSalts(
     inout IPL4asp_PT portRef,
     in ConnectionId connId
   ) return IPL4_SrtpKeysAndSalts;
-  
+
   // see RFC 5705 / section 4.
   external function f_IPL4_exportSctpKey(
     inout IPL4asp_PT portRef,
@@ -155,20 +155,20 @@ module IPL4asp_PortType {
     in ConnectionId connId := -1,
     in charstring certificate_file := ""
   ) return charstring;
-  
+
   // returns the fingerprint of the peer certificate
   external function f_IPL4_getPeerCertificateFingerprint(
     inout IPL4asp_PT portRef,
     in ConnectionId connId,
     in IPL4_DigestMethods method
   ) return charstring;
-  
+
   // returns the selected SRTP profile
   external function f_IPL4_getSelectedSrtpProfile(
     inout IPL4asp_PT portRef,
     in ConnectionId connId
   ) return charstring;
-  
+
   /* This function sets the user defined function to determine the message
      length (boundary) in a TCP data stream.
      The function can be set at global or connection level.
@@ -188,6 +188,19 @@ module IPL4asp_PortType {
     in ro_integer msgLenArgs
   );
 
+  /* This function is only called when the kernel reports that the connection is
+     closed by the remote peer, before removing the databasa items from the testport
+     and reporting the connClosed to the TTCN layer.
+     The user function should return -1 for if the remaining received data on the
+     connection shall not be passed to the TTCN layer. A positive value: the
+     remaining data shall be passed to the TTCN layer.
+  */
+  external function f_IPL4_setGetMsgLen_forConnClosedEvent(
+    inout IPL4asp_PT portRef,
+    in ConnectionId connId := -1,
+    inout f_getMsgLen f,
+    in ro_integer msgLenArgs
+  );
 
 
   /* This function provides a simple message length calculation functionality.
@@ -216,6 +229,6 @@ module IPL4asp_PortType {
     in ASP_RecvFrom
     in ASP_Event
   } with {extension "provider"}
-  
+
 } // IPL4asp_PortType
 

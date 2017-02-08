@@ -10,7 +10,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
 //  File:               IPL4asp_PT.hh
-//  Rev:                R21B
+//  Rev:                R23B
 //  Prodnr:             CNL 113 531
 //  Contact:            http://ttcn.ericsson.se
 
@@ -204,7 +204,9 @@ typedef struct {
   unsigned int cnt;
   int userData;
   Socket__API__Definitions::f__getMsgLen getMsgLen;
+  Socket__API__Definitions::f__getMsgLen getMsgLen_forConnClosedEvent;
   Socket__API__Definitions::ro__integer *msgLenArgs;
+  Socket__API__Definitions::ro__integer *msgLenArgs_forConnClosedEvent;
   int msgLen; // -1 or the message length returned by getMsgLen
   int nextFree; // -1 or index of next free element
   int parentIdx; // parent index (-1 if no)
@@ -506,6 +508,13 @@ private:
   int getConnectionDetails(int id, IPL4asp__Types::IPL4__Param IPL4param, IPL4asp__Types::IPL4__ParamResult& IPL4paramResult);
   void sendError(Socket__API__Definitions::PortError code, const Socket__API__Definitions::ConnectionId& id,
       int os_error_code = 0);
+  void reportRemainingData_beforeConnClosed(const Socket__API__Definitions::ConnectionId& id,
+      const CHARSTRING& remoteaddr,
+      const Socket__API__Definitions::PortNumber& remoteport,
+      const CHARSTRING& localaddr,
+      const Socket__API__Definitions::PortNumber& localport,
+      const Socket__API__Definitions::ProtoTuple& proto,
+      const int& userData);
   void sendConnClosed(const Socket__API__Definitions::ConnectionId& id,
       const CHARSTRING& remoteaddr,
       const Socket__API__Definitions::PortNumber& remoteport,
@@ -536,7 +545,9 @@ private:
   int max_num_of_poll;
   GlobalConnOpts globalConnOpts;
   Socket__API__Definitions::f__getMsgLen defaultGetMsgLen;
+  Socket__API__Definitions::f__getMsgLen defaultGetMsgLen_forConnClosedEvent;
   Socket__API__Definitions::ro__integer *defaultMsgLenArgs;
+  Socket__API__Definitions::ro__integer *defaultMsgLenArgs_forConnClosedEvent;
 
   SockDesc *sockList;
   unsigned int sockListCnt;
@@ -736,6 +747,12 @@ public:
   socklen_t closingPeerLen;
 
   friend void f__IPL4__PROVIDER__setGetMsgLen(
+      IPL4asp__PT_PROVIDER& portRef,
+      const Socket__API__Definitions::ConnectionId& connId,
+      Socket__API__Definitions::f__getMsgLen& f,
+      const Socket__API__Definitions::ro__integer& msgLenArgs);
+
+  friend void f__IPL4__PROVIDER__setGetMsgLen__forConnClosedEvent(
       IPL4asp__PT_PROVIDER& portRef,
       const Socket__API__Definitions::ConnectionId& connId,
       Socket__API__Definitions::f__getMsgLen& f,
