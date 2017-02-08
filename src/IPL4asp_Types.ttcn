@@ -10,7 +10,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
 //  File:               IPL4asp_Types.ttcn
-//  Rev:                R21B
+//  Rev:                R23B01
 //  Prodnr:             CNL 113 531
 //  Contact:            http://ttcn.ericsson.se
 //  Reference:
@@ -435,7 +435,10 @@ type union SSL_protocols{
   boolean SSLv3_supported,
   boolean TLSv1_supported,
   boolean TLSv1_1_supported,
-  boolean TLSv1_2_supported
+  boolean TLSv1_2_supported,
+  boolean DTLSv1_supported,
+  boolean DTLSv1_2_supported
+  
 }
 
 type record of SSL_protocols SSL_proto_support

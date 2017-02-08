@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //                                                                           //
-// Copyright Test Competence Center (TCC) ETH 2016                           //
+// Copyright Test Competence Center (TCC) ETH 2017                           //
 //                                                                           //
 // The copyright to the computer  program(s) herein  is the property of TCC. //
 // The program(s) may be used and/or copied only with the written permission //
@@ -10,7 +10,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
 //  File:               IPL4asp_PT.cc
-//  Rev:                R23B
+//  Rev:                R23B01
 //  Prodnr:             CNL 113 531
 //  Contact:            http://ttcn.ericsson.se
 //  Reference:
@@ -54,6 +54,13 @@
 #if defined(BIO_CTRL_DGRAM_SCTP_GET_RCVINFO) && defined(BIO_CTRL_DGRAM_SCTP_SET_SNDINFO)
 #define OPENSSL_SCTP_SUPPORT
 #endif
+
+// is DTLS_mehod available?
+#ifndef SSL_OP_NO_DTLSv1_2
+#define DTLS_client_method DTLSv1_client_method
+#define DTLS_server_method DTLSv1_server_method
+#endif
+
 #endif
 
 #ifdef USE_IPL4_EIN_SCTP
@@ -652,6 +659,18 @@ void IPL4asp__PT_PROVIDER::set_parameter(const char *parameter_name,
     else if (!strcasecmp(parameter_value,"NO"))
       globalConnOpts.ssl_supp.TLSv1_2 = GlobalConnOpts::NO;
   }
+  else if (!strcmp(parameter_name, "DTLSv1")){
+    if (!strcasecmp(parameter_value,"YES"))
+      globalConnOpts.ssl_supp.DTLSv1 = GlobalConnOpts::YES;
+    else if (!strcasecmp(parameter_value,"NO"))
+      globalConnOpts.ssl_supp.DTLSv1 = GlobalConnOpts::NO;
+  }
+  else if (!strcmp(parameter_name, "DTLSv1.2")){
+    if (!strcasecmp(parameter_value,"YES"))
+      globalConnOpts.ssl_supp.DTLSv1_2 = GlobalConnOpts::YES;
+    else if (!strcasecmp(parameter_value,"NO"))
+      globalConnOpts.ssl_supp.DTLSv1_2 = GlobalConnOpts::NO;
+  }
   else if (!strcmp(parameter_name, "TLS_CERT_PER_CONN")){
     if (!strcasecmp(parameter_value,"YES"))
        ssl_cert_per_conn= true;
@@ -893,7 +912,11 @@ void IPL4asp__PT_PROVIDER::Handle_Fd_Event_Readable(int fd)
 #ifdef SRTP_AES128_CM_SHA1_80
         // DTLS listen & accept the incoming connection
         SockAddr sa_client;
-        int ret = DTLSv1_listen(sockList[connId].sslObj, &sa_client);
+        int ret = DTLSv1_listen(sockList[connId].sslObj, 
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L 
+         (BIO_ADDR*)
+#endif        
+        &sa_client);
         IPL4_DEBUG("IPL4asp__PT_PROVIDER::Handle_Fd_Event_Readable: DTLSv1_listen exited with ret.value %d", ret);
         if(ret <= 0) {
           IPL4_DEBUG("IPL4asp__PT_PROVIDER::Handle_Fd_Event_Readable: not enough data for DTLSv1_listen...");
@@ -2590,6 +2613,8 @@ void IPL4asp__PT_PROVIDER::set_ssl_supp_option(const int& conn_id, const IPL4asp
             case SSL__protocols::ALT_TLSv1__supported: sockList[conn_id].ssl_supp.TLSv1=sp[i].TLSv1__supported(); break;
             case SSL__protocols::ALT_TLSv1__1__supported: sockList[conn_id].ssl_supp.TLSv1_1=sp[i].TLSv1__1__supported(); break;
             case SSL__protocols::ALT_TLSv1__2__supported: sockList[conn_id].ssl_supp.TLSv1_2=sp[i].TLSv1__2__supported(); break;
+            case SSL__protocols::ALT_DTLSv1__supported: sockList[conn_id].ssl_supp.DTLSv1=sp[i].DTLSv1__supported(); break;
+            case SSL__protocols::ALT_DTLSv1__2__supported: sockList[conn_id].ssl_supp.DTLSv1_2=sp[i].DTLSv1__2__supported(); break;
             default: break;
           }
         }
@@ -2791,6 +2816,8 @@ bool IPL4asp__PT_PROVIDER::setOptions(const OptionList& options,
       case SSL__protocols::ALT_TLSv1__supported: globalConnOpts.ssl_supp.TLSv1=sp[i].TLSv1__supported(); break;
       case SSL__protocols::ALT_TLSv1__1__supported: globalConnOpts.ssl_supp.TLSv1_1=sp[i].TLSv1__1__supported(); break;
       case SSL__protocols::ALT_TLSv1__2__supported: globalConnOpts.ssl_supp.TLSv1_2=sp[i].TLSv1__2__supported(); break;
+      case SSL__protocols::ALT_DTLSv1__supported: globalConnOpts.ssl_supp.DTLSv1=sp[i].DTLSv1__supported(); break;
+      case SSL__protocols::ALT_DTLSv1__2__supported: globalConnOpts.ssl_supp.DTLSv1_2=sp[i].DTLSv1__2__supported(); break;
       default: break;
       }
     }
@@ -3208,6 +3235,8 @@ int IPL4asp__PT_PROVIDER::ConnAdd(SockType type, int sock, SSL_TLS_Type ssl_tls_
     sockList[i].ssl_supp.TLSv1=sockList[parentIdx].ssl_supp.TLSv1;
     sockList[i].ssl_supp.TLSv1_1=sockList[parentIdx].ssl_supp.TLSv1_1;
     sockList[i].ssl_supp.TLSv1_2=sockList[parentIdx].ssl_supp.TLSv1_2;
+    sockList[i].ssl_supp.DTLSv1=sockList[parentIdx].ssl_supp.DTLSv1;
+    sockList[i].ssl_supp.DTLSv1_2=sockList[parentIdx].ssl_supp.DTLSv1_2;
     if(sockList[parentIdx].dtlsSrtpProfiles){
       sockList[i].dtlsSrtpProfiles = mcopystr(sockList[parentIdx].dtlsSrtpProfiles);
     } else {
@@ -3250,6 +3279,8 @@ int IPL4asp__PT_PROVIDER::ConnAdd(SockType type, int sock, SSL_TLS_Type ssl_tls_
     sockList[i].ssl_supp.TLSv1=globalConnOpts.ssl_supp.TLSv1;
     sockList[i].ssl_supp.TLSv1_1=globalConnOpts.ssl_supp.TLSv1_1;
     sockList[i].ssl_supp.TLSv1_2=globalConnOpts.ssl_supp.TLSv1_2;
+    sockList[i].ssl_supp.DTLSv1=globalConnOpts.ssl_supp.DTLSv1;
+    sockList[i].ssl_supp.DTLSv1_2=globalConnOpts.ssl_supp.DTLSv1_2;
     sockList[i].dtlsSrtpProfiles = NULL;
     sockList[i].ssl_key_file = NULL;
     sockList[i].ssl_certificate_file = NULL;
@@ -3937,12 +3968,15 @@ CHARSTRING IPL4_get_certificate_fingerprint(const X509 *x509, const IPL4__Digest
     case IPL4__DigestMethods::MD5:
       fingerprint_type = EVP_md5();
       break;
+#if OPENSSL_VERSION_NUMBER < 0x10100000L 
     case IPL4__DigestMethods::SHA:
       fingerprint_type = EVP_sha();
       break;
+#endif
     case IPL4__DigestMethods::SHA1:
       fingerprint_type = EVP_sha1();
       break;
+#if OPENSSL_VERSION_NUMBER < 0x10100000L 
     case IPL4__DigestMethods::DSS:
       fingerprint_type = EVP_dss();
       break;
@@ -3952,6 +3986,7 @@ CHARSTRING IPL4_get_certificate_fingerprint(const X509 *x509, const IPL4__Digest
     case IPL4__DigestMethods::ECDSA:
       fingerprint_type = EVP_ecdsa();
       break;
+#endif
     case IPL4__DigestMethods::SHA224:
       fingerprint_type = EVP_sha224();
       break;
@@ -4177,26 +4212,6 @@ Result f__IPL4__PROVIDER__listen(IPL4asp__PT_PROVIDER& portRef, const HostName& 
 
   //check if all mandatory SSL config params are present for a listening socket
 #ifdef IPL4_USE_SSL
-
-  if(((proto.get_selection() == ProtoTuple::ALT_ssl) ||
-      (proto.get_selection() == ProtoTuple::ALT_dtls))  && !portRef.ssl_cert_per_conn)
-  {
-    if (portRef.ssl_certificate_file==NULL)
-    {
-      IPL4_PORTREF_DEBUG(portRef, "%s is not defined in the configuration file", portRef.ssl_certificate_file_name());
-      RETURN_ERROR(ERROR__GENERAL);
-    }
-    if (portRef.ssl_trustedCAlist_file==NULL)
-    {
-      IPL4_PORTREF_DEBUG(portRef, "%s is not defined in the configuration file", portRef.ssl_trustedCAlist_file_name());
-      RETURN_ERROR(ERROR__GENERAL);
-    }
-    if (portRef.ssl_key_file==NULL)
-    {
-      IPL4_PORTREF_DEBUG(portRef, "%s is not defined in the configuration file", portRef.ssl_private_key_file_name());
-      RETURN_ERROR(ERROR__GENERAL);
-    }
-  }
 
   if((proto.get_selection() == ProtoTuple::ALT_ssl) || (proto.get_selection() == ProtoTuple::ALT_dtls)) {
     ssl_tls_type = SERVER;
@@ -5690,9 +5705,9 @@ bool IPL4asp__PT_PROVIDER::ssl_create_contexts_and_obj(int client_id) {
       if((sockList[client_id].type == IPL4asp_TCP) || (sockList[client_id].type == IPL4asp_TCP_LISTEN)) {
         selected_ctx=SSL_CTX_new (SSLv23_method());
       } else if(sockList[client_id].ssl_tls_type == CLIENT) {
-        selected_ctx=SSL_CTX_new (DTLSv1_client_method());
+        selected_ctx=SSL_CTX_new (DTLS_client_method());
       } else {
-        selected_ctx=SSL_CTX_new (DTLSv1_server_method());
+        selected_ctx=SSL_CTX_new (DTLS_server_method());
       }
       sockList[client_id].sslCTX=selected_ctx;
       ssl_init_SSL_ctx(selected_ctx, client_id);
@@ -5756,6 +5771,16 @@ bool IPL4asp__PT_PROVIDER::ssl_create_contexts_and_obj(int client_id) {
 #ifdef SSL_OP_NO_TLSv1_2
   if(sockList[client_id].ssl_supp.TLSv1_2 == GlobalConnOpts::NO){
     SSL_set_options(ssl_current_ssl,SSL_OP_NO_TLSv1_2);
+  }
+#endif
+#ifdef SSL_OP_NO_DTLSv1
+  if(sockList[client_id].ssl_supp.DTLSv1 == GlobalConnOpts::NO){
+    SSL_set_options(ssl_current_ssl,SSL_OP_NO_DTLSv1);
+  }
+#endif
+#ifdef SSL_OP_NO_DTLSv1_2
+  if(sockList[client_id].ssl_supp.DTLSv1_2 == GlobalConnOpts::NO){
+    SSL_set_options(ssl_current_ssl,SSL_OP_NO_DTLSv1_2);
   }
 #endif
 
@@ -6377,7 +6402,7 @@ int ssl_generate_cookie_callback(SSL *ssl, unsigned char *cookie, unsigned int *
 }
 
 // returns 1 on success, 0 on fail
-int ssl_verify_cookie_callback(SSL *ssl, unsigned char *cookie,
+int ssl_verify_cookie_callback(SSL *ssl, const unsigned char *cookie,
     unsigned int cookie_len) {
 
 #ifdef SRTP_AES128_CM_SHA1_80
@@ -6601,9 +6626,9 @@ bool IPL4asp__PT_PROVIDER::ssl_init_SSL(int connId)
 
   IPL4_DEBUG("Creating DTLSv1 context...");
   // Create contexts with DTLSv1_server_method() and DTLSv1_client_method() method
-  ssl_dtls_server_ctx = SSL_CTX_new (DTLSv1_server_method());
+  ssl_dtls_server_ctx = SSL_CTX_new (DTLS_server_method());
   if(!ssl_init_SSL_ctx(ssl_dtls_server_ctx, connId)) { return false; }
-  ssl_dtls_client_ctx = SSL_CTX_new (DTLSv1_client_method());
+  ssl_dtls_client_ctx = SSL_CTX_new (DTLS_client_method());
   if(!ssl_init_SSL_ctx(ssl_dtls_client_ctx, connId)) { return false; }
 
   ssl_initialized=true;

@@ -10,7 +10,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
 //  File:               IPL4asp_PT.hh
-//  Rev:                R23B
+//  Rev:                R23B01
 //  Prodnr:             CNL 113 531
 //  Contact:            http://ttcn.ericsson.se
 
@@ -122,6 +122,7 @@
 #include <openssl/rand.h>
 #include <openssl/err.h>
 #include <openssl/bio.h>
+#include <openssl/evp.h>
 
 #define IPL4_COOKIE_SECRET_LENGTH 16
 #endif
@@ -152,19 +153,25 @@ struct SSL_Suport {
   int TLSv1; /* YES, NO, NOT_SET */
   int TLSv1_1; /* YES, NO, NOT_SET */
   int TLSv1_2; /* YES, NO, NOT_SET */
+  int DTLSv1; /* YES, NO, NOT_SET */
+  int DTLSv1_2; /* YES, NO, NOT_SET */
   SSL_Suport():
   SSLv2(-1), /*  NOT_SET */
   SSLv3(-1), /*  NOT_SET */
   TLSv1(-1), /*  NOT_SET */
   TLSv1_1(-1), /*  NOT_SET */
-  TLSv1_2(-1) /*  NOT_SET */
+  TLSv1_2(-1), /*  NOT_SET */
+  DTLSv1(-1), /*  NOT_SET */
+  DTLSv1_2(-1) /*  NOT_SET */
   {}
-  SSL_Suport(int s2,int s3,int t1, int t11, int t12):
+  SSL_Suport(int s2,int s3,int t1, int t11, int t12, int dt1, int dt12):
   SSLv2(s2),
   SSLv3(s3),
   TLSv1(t1),
   TLSv1_1(t11),
-  TLSv1_2(t12)
+  TLSv1_2(t12),
+  DTLSv1(dt1),
+  DTLSv1_2(dt12)
   {}
 };
 
@@ -357,7 +364,7 @@ struct GlobalConnOpts {
     //ssl_nodelay (NOT_SET),
     sctp_nodelay (NOT_SET),
     freebind(NOT_SET),
-    ssl_supp(YES,YES,YES,YES,YES ),
+    ssl_supp(YES,YES,YES,YES,YES,YES,YES ),
     dtlsSrtpProfiles (NULL)
   {}
 };
