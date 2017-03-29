@@ -10,7 +10,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
 //  File:               IPL4asp_discovery.cc
-//  Rev:                R23C
+//  Rev:                R25A
 //  Prodnr:             CNL 113 531
 //  Updated:            2010-10-04
 //  Contact:            http://ttcn.ericsson.se

@@ -10,7 +10,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
 //  File:               IPL4asp_PT.cc
-//  Rev:                R23C
+//  Rev:                R25A
 //  Prodnr:             CNL 113 531
 //  Contact:            http://ttcn.ericsson.se
 //  Reference:
@@ -59,6 +59,38 @@
 #ifndef SSL_OP_NO_DTLSv1_2
 #define DTLS_client_method DTLSv1_client_method
 #define DTLS_server_method DTLSv1_server_method
+#endif
+
+static int current_conn_id=-1;
+
+#if OPENSSL_VERSION_NUMBER >= 0x1000200fL
+
+static int ipl4_tls_alpn_cb (SSL *ssl, const unsigned char **out,
+                                            unsigned char *outlen,
+                                            const unsigned char *in,
+                                            unsigned int inlen,
+                                            void *arg){
+
+  IPL4asp__PortType::IPL4asp__PT_PROVIDER* tp=(IPL4asp__PortType::IPL4asp__PT_PROVIDER*)arg;
+  if(!tp->isConnIdValid(current_conn_id)){
+    return SSL_TLSEXT_ERR_NOACK;
+  }
+  
+  if(!tp->sockList[current_conn_id].alpn){
+    return SSL_TLSEXT_ERR_NOACK;
+  }
+
+    if (SSL_select_next_proto
+        ((unsigned char **)out, outlen, (const unsigned char*)(*tp->sockList[current_conn_id].alpn), 
+         tp->sockList[current_conn_id].alpn->lengthof(), in,
+         inlen) != OPENSSL_NPN_NEGOTIATED) {
+        return SSL_TLSEXT_ERR_NOACK;
+    }
+
+
+  return SSL_TLSEXT_ERR_OK;
+
+}
 #endif
 
 #endif
@@ -296,8 +328,12 @@ IPL4asp__PT_PROVIDER::IPL4asp__PT_PROVIDER(const char *par_port_name)
   debugAllowed = false;
   mapped = false;
   sockListSize = SOCK_LIST_SIZE_MIN;
-  defaultLocHost = "";
+  defaultLocHost = memptystr();
   defaultLocPort = 9999;
+  defaultRemHost = NULL;
+  defaultRemPort = -1;
+  default_mode = 0;
+  default_proto = 0;
   backlog = SOMAXCONN;
   defaultGetMsgLen = simpleGetMsgLen;
   defaultGetMsgLen_forConnClosedEvent = simpleGetMsgLen; // by default we pass up to TTCN the remaining buffer content on connClosed
@@ -373,6 +409,9 @@ IPL4asp__PT_PROVIDER::~IPL4asp__PT_PROVIDER()
   IPL4_DEBUG("IPL4asp__PT_PROVIDER::~IPL4asp__PT_PROVIDER: enter");
   delete defaultMsgLenArgs;
   delete defaultMsgLenArgs_forConnClosedEvent;
+  
+  Free(defaultLocHost);
+  Free(defaultRemHost);
   // now SSL context can be removed
 #ifdef IPL4_USE_SSL
   if (ssl_ctx!=NULL) {
@@ -427,7 +466,36 @@ void IPL4asp__PT_PROVIDER::set_parameter(const char *parameter_name,
   } else if (!strcmp(parameter_name, "defaultListeningPort")) {
     defaultLocPort = atoi(parameter_value);
   } else if (!strcmp(parameter_name, "defaultListeningHost")) {
-    defaultLocHost = parameter_value;
+    if(defaultLocHost){
+      Free(defaultLocHost);
+    }
+    defaultLocHost = mcopystr(parameter_value);
+  } else if (!strcasecmp(parameter_name, "map_behavior")) {
+    if(!strcasecmp(parameter_value, "connect")){
+      default_mode = 1;
+    } else if(!strcasecmp(parameter_value, "listen")) {
+      default_mode = 2;
+    } else {
+      default_mode = 0;
+    }
+    
+  } else if (!strcasecmp(parameter_name, "map_protocol")) {
+    if(!strcasecmp(parameter_value, "tcp")){
+      default_proto = 0;
+    } else if(!strcasecmp(parameter_value, "tls")) {
+      default_proto = 1;
+    } else if(!strcasecmp(parameter_value, "sctp")) {
+      default_proto = 2;
+    } else if(!strcasecmp(parameter_value, "udp")) {
+      default_proto = 3;
+    }    
+  } else if (!strcasecmp(parameter_name, "RemotePort")) {
+    defaultRemPort = atoi(parameter_value);
+  } else if (!strcasecmp(parameter_name, "RemoteHost")) {
+    if(defaultRemHost){
+      Free(defaultRemHost);
+    }
+    defaultRemHost = mcopystr(parameter_value);
   } else if (!strcmp(parameter_name, "backlog")) {
     backlog = atoi(parameter_value);
     if (backlog <= 0) {
@@ -1331,7 +1399,7 @@ void IPL4asp__PT_PROVIDER::Handle_Fd_Event_Readable(int fd)
       iov->iov_len = RECV_MAX_LEN;
       msg->msg_iov = iov;
       msg->msg_iovlen = 1;
-#ifdef IPL4_USE_SSL
+#ifdef OPENSSL_SCTP_SUPPORT
       bool sctpNotification = false;
 #endif
 
@@ -1364,7 +1432,9 @@ void IPL4asp__PT_PROVIDER::Handle_Fd_Event_Readable(int fd)
           handle_event(sock, connId, atm);
 
 #ifdef IPL4_USE_SSL
+#ifdef OPENSSL_SCTP_SUPPORT
           sctpNotification = true;
+#endif
           union sctp_notification *snp;
     	  snp = (sctp_notification *)buf;
 
@@ -1382,7 +1452,10 @@ void IPL4asp__PT_PROVIDER::Handle_Fd_Event_Readable(int fd)
 #ifdef SCTP_SENDER_DRY_EVENT
     	    // SCTP_SENDER_DRY_EVENT notifies that the SCTP stack has no more user data to send or retransmit (rfc6458).
     	    // This means that dtls DATA might be also received.
+#ifdef OPENSSL_SCTP_SUPPORT
+
     	  if(snp->sn_header.sn_type == SCTP_SENDER_DRY_EVENT) sctpNotification = false;
+#endif
 #endif
     	  if(snp->sn_header.sn_type == SCTP_SHUTDOWN_EVENT)
     	  {
@@ -1464,7 +1537,7 @@ void IPL4asp__PT_PROVIDER::Handle_Fd_Event_Readable(int fd)
         }
         sendConnClosed(connId, asp.remName(), asp.remPort(), asp.locName(), asp.locPort(), asp.proto(), asp.userData());
 
-#ifdef IPL4_USE_SSL
+#ifdef OPENSSL_SCTP_SUPPORT
         sctpNotification = true;
 #endif
 
@@ -1626,11 +1699,10 @@ void IPL4asp__PT_PROVIDER::reportConnOpened(const int client_id) {
   incoming_message(event);
 }
 
-
+#ifdef USE_SCTP
 int IPL4asp__PT_PROVIDER::getmsg(int fd, int connId, struct msghdr *msg, void */*buf*/, size_t */*buflen*/,
     ssize_t *nrp, size_t /*cmsglen*/)
 {
-#ifdef USE_SCTP
   if(!sockList[connId].sctpHandshakeCompletedBeforeDtls) {
     *nrp = recvmsg(fd, msg, 0);
   } else {
@@ -1652,6 +1724,11 @@ int IPL4asp__PT_PROVIDER::getmsg(int fd, int connId, struct msghdr *msg, void */
   if (msg->msg_flags & MSG_EOR) {
     return IPL4_SCTP_WHOLE_MESSAGE_RECEIVED;
   }
+#else
+
+int IPL4asp__PT_PROVIDER::getmsg(int /*fd*/, int /*connId*/, struct msghdr */*msg*/, void */*buf*/, size_t */*buflen*/,
+    ssize_t */*nrp*/, size_t /*cmsglen*/)
+{
 #endif
   return IPL4_SCTP_PARTIAL_RECEIVE;
 }
@@ -1883,8 +1960,78 @@ void IPL4asp__PT_PROVIDER::user_map(const char *system_port)
 #ifdef USE_IPL4_EIN_SCTP
   if(!native_stack) do_bind();
 #endif
-
   mapped = true;
+
+  switch(default_mode){
+    case 1:  // connect
+      if(lazy_conn_id_level!=1){
+        TTCN_error("IPL4asp__PT_PROVIDER::user_map(%s): Autoconnect: The lazy_conn_id_level should be \"Yes\" ",system_port);
+      }
+      if(defaultRemHost==NULL){
+        TTCN_error("IPL4asp__PT_PROVIDER::user_map(%s): Autoconnect: The remote host should be specified.",system_port);
+      }
+      if(defaultRemPort==-1){
+        TTCN_error("IPL4asp__PT_PROVIDER::user_map(%s): Autoconnect: The remote port should be specified.",system_port);
+      }
+      {
+        ProtoTuple pt;
+        pt.unspecified() = NULL_VALUE;
+        switch(default_proto){
+          case 1: // TLS
+            pt.ssl() = NULL_VALUE;
+            break;
+          case 2: // SCTP
+            pt.sctp() = SctpTuple(OMIT_VALUE,OMIT_VALUE,OMIT_VALUE,OMIT_VALUE);
+            break;
+          case 3: // UDP
+            pt.udp() = NULL_VALUE;
+            break;
+          default:  // TCP
+            pt.tcp() = NULL_VALUE;
+            break;
+        }
+        OptionList op= NULL_VALUE;
+        Result res= f__IPL4__PROVIDER__connect(*this,defaultRemHost,defaultRemPort,defaultLocHost,defaultLocPort,-1,pt,op);
+        
+        if(res.errorCode().ispresent()){ 
+          TTCN_error("IPL4asp__PT_PROVIDER::user_map(%s): Autoconnect: Can not connect: %d %s ",system_port,res.os__error__code().ispresent()?(int)res.os__error__code()():-1,res.os__error__text().ispresent()?(const char*)res.os__error__text()():"");
+        }
+      }
+      break;
+    case 2: // listen
+      if(lazy_conn_id_level!=0){
+        TTCN_error("IPL4asp__PT_PROVIDER::user_map(%s): Autolisten: The lazy_conn_id_level should be \"No\" ",system_port);
+      }
+      {
+        ProtoTuple pt;
+        pt.unspecified() = NULL_VALUE;
+        switch(default_proto){
+          case 1: // TLS
+            pt.ssl() = NULL_VALUE;
+            break;
+          case 2: // SCTP
+            pt.sctp() = SctpTuple(OMIT_VALUE,OMIT_VALUE,OMIT_VALUE,OMIT_VALUE);
+            break;
+          case 3: // UDP
+            pt.udp() = NULL_VALUE;
+            break;
+          default:  // TCP
+            pt.tcp() = NULL_VALUE;
+            break;
+        }
+        OptionList op= NULL_VALUE;
+        Result res= f__IPL4__PROVIDER__listen(*this,defaultLocHost,defaultLocPort,pt,op);
+        
+        if(res.errorCode().ispresent()){ 
+          TTCN_error("IPL4asp__PT_PROVIDER::user_map(%s): Autolisten: Can not listen: %d %s ",system_port,res.os__error__code().ispresent()?(int)res.os__error__code()():-1,res.os__error__text().ispresent()?(const char*)res.os__error__text()():"");
+        }
+      }
+    
+      break;
+    default: // do nothing
+     break;
+  }
+
 } // IPL4asp__PT_PROVIDER::user_map
 
 
@@ -2325,7 +2472,7 @@ int IPL4asp__PT_PROVIDER::sendNonBlocking(const ConnectionId& connId, sockaddr *
       event.connClosed().locPort() = *(sockList[ii].localport);
       event.connClosed().proto().tcp() = TcpTuple(null_type());
       event.connClosed().userData() = 0;
-      int l_ud; getUserData((int)connId, l_ud); event.connClosed().userData() = l_ud;
+      int l_ud=-1; getUserData((int)connId, l_ud); event.connClosed().userData() = l_ud;
 
       switch (type) {
       case IPL4asp_UDP:
@@ -2407,7 +2554,7 @@ int IPL4asp__PT_PROVIDER::sendNonBlocking(const ConnectionId& connId, sockaddr *
         event.connClosed().locPort() = *(sockList[ii].localport);
         event.connClosed().proto().tcp() = TcpTuple(null_type());
         event.connClosed().userData() = 0;
-        int l_ud; getUserData((int)connId, l_ud); event.connClosed().userData() = l_ud;
+        int l_ud=-1; getUserData((int)connId, l_ud); event.connClosed().userData() = l_ud;
 
         switch (type) {
         case IPL4asp_UDP:
@@ -2657,6 +2804,28 @@ void IPL4asp__PT_PROVIDER::set_ssl_supp_option(const int& conn_id, const IPL4asp
         
       }
       break;
+    case Option::ALT_alpn__list:{
+        delete sockList[conn_id].alpn;
+        sockList[conn_id].alpn= new OCTETSTRING(0,NULL);
+        for(int f=0;f<options[k].alpn__list().lengthof();f++){
+          *sockList[conn_id].alpn= (*sockList[conn_id].alpn) + int2oct(options[k].alpn__list()[f].lengthof(),1) + char2oct(options[k].alpn__list()[f]);
+        }
+      }
+#if OPENSSL_VERSION_NUMBER < 0x1000200fL
+      TTCN_warning("TLS extension alpn is not supported by the used OpenSSL.");
+#endif
+      break;
+    case Option::ALT_tls__hostname:{
+        if(sockList[conn_id].tls_hostname){
+          *sockList[conn_id].tls_hostname=options[k].tls__hostname();
+        } else {
+          sockList[conn_id].tls_hostname=new CHARSTRING(options[k].tls__hostname());
+        }
+      }
+#ifndef SSL_CTRL_SET_TLSEXT_HOSTNAME
+      TTCN_warning("TLS extension hostname is not supported by the used OpenSSL.");
+#endif      
+      break;
     default: break;
     }
   }
@@ -2705,13 +2874,18 @@ bool IPL4asp__PT_PROVIDER::setOptions(const OptionList& options,
   //    IPL4_DEBUG("IPL4asp__PT_PROVIDER::setOptions: Invalid options");
   //    return false;
   //  }
-  int iR = -1, iK = -1, iM = -1, iS = -1, iL = -1, iSSL=-1, iNoDelay=-1, iFreeBind=-1;
+  int iR = -1, iK = -1, iM = -1, iL = -1, iSSL=-1, iNoDelay=-1, iFreeBind=-1;
+#ifdef IPL4_USE_SSL
+  int iS =-1;
+#endif
   for (int i = 0; i < options.size_of(); ++i) {
     switch (options[i].get_selection()) {
     case Option::ALT_reuseAddress: iR = i; break;
     case Option::ALT_tcpKeepAlive: iK = i; break;
     case Option::ALT_sctpEventHandle: iM = i; break;
+#ifdef IPL4_USE_SSL
     case Option::ALT_sslKeepAlive: iS = i; break;
+#endif
     case Option::ALT_solinger: iL = i; break;
     case Option::ALT_ssl__support: iSSL = i; break;
     case Option::ALT_no__delay: iNoDelay = i; break;
@@ -3267,6 +3441,19 @@ int IPL4asp__PT_PROVIDER::ConnAdd(SockType type, int sock, SSL_TLS_Type ssl_tls_
     } else {
       sockList[i].ssl_password = NULL;
     }
+
+    if(sockList[parentIdx].tls_hostname){
+     sockList[i].tls_hostname = new CHARSTRING(*sockList[parentIdx].tls_hostname);
+    } else {
+      sockList[i].tls_hostname = NULL;
+    }
+    if(sockList[parentIdx].alpn){
+     sockList[i].alpn = new OCTETSTRING(*sockList[parentIdx].alpn);
+    } else {
+      sockList[i].alpn =NULL;
+    }
+    
+    
   } else { // otherwise initialize to defaults
     sockList[i].userData = 0;
     sockList[i].getMsgLen = defaultGetMsgLen;
@@ -3287,6 +3474,8 @@ int IPL4asp__PT_PROVIDER::ConnAdd(SockType type, int sock, SSL_TLS_Type ssl_tls_
     sockList[i].ssl_trustedCAlist_file = NULL;
     sockList[i].ssl_cipher_list = NULL;
     sockList[i].ssl_password = NULL;
+    sockList[i].tls_hostname = NULL;
+    sockList[i].alpn =NULL;
     if(options){
       IPL4_DEBUG("IPL4asp__PT_PROVIDER::ConnAdd: connId: set ssl options for connId : %d", i);
       set_ssl_supp_option(i,*options);
@@ -3402,6 +3591,10 @@ void SockDesc::clear()
   delete localport; localport = 0;
   delete remoteaddr; remoteaddr = 0;
   delete remoteport; remoteport = 0;
+
+  delete tls_hostname; tls_hostname = NULL;
+  
+  delete alpn; alpn=NULL;
 
   sock = SOCK_NONEX;
   msgLen = -1;
@@ -5750,6 +5943,31 @@ bool IPL4asp__PT_PROVIDER::ssl_create_contexts_and_obj(int client_id) {
 
   ssl_current_ssl=SSL_new(selected_ctx);
 
+  if (ssl_current_ssl==NULL)
+  {
+    IPL4_DEBUG("IPL4asp__PT_PROVIDER::ssl_create_contexts_and_obj: Creation of SSL object failed for client: %d", client_id);
+    return false;
+  }
+
+#ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
+  if(sockList[client_id].tls_hostname){
+    IPL4_DEBUG("Setting TLS hostname");
+    SSL_set_tlsext_host_name(ssl_current_ssl,(const char*)(*sockList[client_id].tls_hostname)) ; 
+  }
+#endif
+
+#if OPENSSL_VERSION_NUMBER >= 0x1000200fL
+  if(sockList[client_id].alpn){
+    IPL4_DEBUG("Setting ALPN");
+    int ret=SSL_set_alpn_protos(ssl_current_ssl,(const unsigned char*)(*sockList[client_id].alpn),sockList[client_id].alpn->lengthof());
+    if(ret!=0){
+      ssl_getresult(ret);
+        log_warning("Setting of ALPN failed.");
+        return false;
+    }
+  }
+#endif
+
   if(ssl_cert_per_conn && !sockList[client_id].sslCTX){
     if(sockList[client_id].ssl_cipher_list){
       IPL4_DEBUG("Setting ssl_cipher list restrictions");
@@ -5761,11 +5979,6 @@ bool IPL4asp__PT_PROVIDER::ssl_create_contexts_and_obj(int client_id) {
     }
   }
 
-  if (ssl_current_ssl==NULL)
-  {
-    IPL4_DEBUG("IPL4asp__PT_PROVIDER::ssl_create_contexts_and_obj: Creation of SSL object failed for client: %d", client_id);
-    return false;
-  }
   if(!setSslObj(client_id, ssl_current_ssl))
   {
     IPL4_DEBUG("IPL4asp__PT_PROVIDER::ssl_create_contexts_and_obj: setSslObj failed for client: %d", client_id);
@@ -5868,7 +6081,10 @@ SSL_HANDSHAKE_RESULT IPL4asp__PT_PROVIDER::perform_ssl_handshake(int client_id) 
     while(true)
     {
       IPL4_DEBUG("IPL4asp__PT_PROVIDER::perform_ssl_handshake: SSL attempt to Accept Client Connection... %d", attempt + 1);
-      switch(ssl_getresult(SSL_accept(ssl_current_ssl)))
+      current_conn_id=client_id;
+      int res=ssl_getresult(SSL_accept(ssl_current_ssl));
+      current_conn_id=-1;
+      switch(res)
       {
       case SSL_ERROR_NONE:
         break;
@@ -5943,7 +6159,12 @@ SSL_HANDSHAKE_RESULT IPL4asp__PT_PROVIDER::perform_ssl_handshake(int client_id) 
     while(true)
     {
       IPL4_DEBUG("IPL4asp__PT_PROVIDER::perform_ssl_handshake: SSL attempt to connect ... %d", attempt + 1);
-      switch(ssl_getresult(SSL_connect(ssl_current_ssl)))
+      
+      current_conn_id=client_id;
+      int res=ssl_getresult(SSL_connect(ssl_current_ssl));
+      current_conn_id=-1;
+      
+      switch(res)
       {
       case SSL_ERROR_NONE:
         IPL4_DEBUG("IPL4asp__PT_PROVIDER::perform_ssl_handshake: Connection Success.");
@@ -6622,6 +6843,11 @@ bool IPL4asp__PT_PROVIDER::ssl_init_SSL_ctx(SSL_CTX* in_ssl_ctx, int conn_id) {
     SSL_CTX_set_cookie_generate_cb(in_ssl_ctx, ssl_generate_cookie_callback);
     SSL_CTX_set_cookie_verify_cb(in_ssl_ctx, ssl_verify_cookie_callback);
   }
+
+#if OPENSSL_VERSION_NUMBER >= 0x1000200fL
+  SSL_CTX_set_alpn_select_cb(in_ssl_ctx,ipl4_tls_alpn_cb,this);
+  
+#endif
   return true;
 }
 

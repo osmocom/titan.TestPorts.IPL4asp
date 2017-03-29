@@ -10,7 +10,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
 //  File:               IPL4asp_Types.ttcn
-//  Rev:                R23C
+//  Rev:                R25A
 //  Prodnr:             CNL 113 531
 //  Contact:            http://ttcn.ericsson.se
 //  Reference:
@@ -464,7 +464,9 @@ type union Option {
   boolean        no_delay,
   charstring     dtlsSrtpProfiles,
   SSL_cert_options  cert_options,
-  boolean        freebind
+  boolean        freebind,
+  record of charstring  alpn_list,
+  charstring     tls_hostname
 }
 
 type record of Option OptionList;

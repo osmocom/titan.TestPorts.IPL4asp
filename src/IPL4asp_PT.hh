@@ -10,7 +10,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
 //  File:               IPL4asp_PT.hh
-//  Rev:                R23C
+//  Rev:                R25A
 //  Prodnr:             CNL 113 531
 //  Contact:            http://ttcn.ericsson.se
 
@@ -237,6 +237,8 @@ typedef struct {
   CHARSTRING *localaddr;
   Socket__API__Definitions::PortNumber *remoteport;
   CHARSTRING *remoteaddr;
+  CHARSTRING *tls_hostname;
+  OCTETSTRING* alpn;
 #ifdef USE_IPL4_EIN_SCTP
   int next_action;
   int endpoint_id;
@@ -392,8 +394,12 @@ public:
   CHARSTRING getSelectedSrtpProfile(const IPL4asp__Types::ConnectionId& connId);
 //  bool setDtlsSrtpProfiles(const IPL4asp__Types::ConnectionId& connId,const IPL4asp__Types::OptionList& options);
 
-  const char *defaultLocHost;
+  char *defaultLocHost;
   int defaultLocPort;
+  char *defaultRemHost;
+  int defaultRemPort;
+  int default_mode; // 0 - normal, 1 - auto connect, 2 - auto listen
+  int default_proto; // 0 - tcp, 1 - tls, 2 - sctp, 3 - udp
 protected:
   void user_map(const char *system_port);
   void user_unmap(const char *system_port);
@@ -500,6 +506,11 @@ public:
   void log_warning(const char *fmt, ...) const
   __attribute__ ((__format__ (__printf__, 2, 3)));
   void log_hex(const char *prompt, const unsigned char *msg, size_t length) const;
+  inline bool isConnIdValid(int connId) const {
+    return ((unsigned int)connId < sockListSize && connId > 0 &&
+        sockList != 0 && sockList[connId].sock > 0);
+  }
+  SockDesc *sockList;
 
 private:
   void Handle_Fd_Event_Error(int fd);
@@ -537,10 +548,6 @@ private:
       int sock, const Socket__API__Definitions::ProtoTuple& proto, bool beforeBind = false);
   void set_ssl_supp_option(const int& conn_id, const IPL4asp__Types::OptionList& options);
   inline void testIfInitialized() const;
-  inline bool isConnIdValid(int connId) const {
-    return ((unsigned int)connId < sockListSize && connId > 0 &&
-        sockList != 0 && sockList[connId].sock > 0);
-  }
 
   void setResult(Socket__API__Definitions::Result& result, Socket__API__Definitions::PortError code, const Socket__API__Definitions::ConnectionId& id, int os_error_code = 0);
   void reportConnOpened(const int client_id);
@@ -556,7 +563,6 @@ private:
   Socket__API__Definitions::ro__integer *defaultMsgLenArgs;
   Socket__API__Definitions::ro__integer *defaultMsgLenArgs_forConnClosedEvent;
 
-  SockDesc *sockList;
   unsigned int sockListCnt;
   unsigned int sockListSize;
   int lonely_conn_id;
