@@ -1,16 +1,15 @@
 ///////////////////////////////////////////////////////////////////////////////
-//                                                                           //
-// Copyright Test Competence Center (TCC) ETH 2017                           //
-//                                                                           //
-// The copyright to the computer  program(s) herein  is the property of TCC. //
-// The program(s) may be used and/or copied only with the written permission //
-// of TCC or in accordance with  the terms and conditions  stipulated in the //
-// agreement/contract under which the program(s) has been supplied.          //
-//                                                                           //
+//
+// Copyright (c) 2000-2017 Ericsson Telecom AB
+//
+// All rights reserved. This program and the accompanying materials
+// are made available under the terms of the Eclipse Public License v1.0
+// which accompanies this distribution, and is available at
+// http://www.eclipse.org/legal/epl-v10.html
 ///////////////////////////////////////////////////////////////////////////////
 //
 //  File:               IPL4asp_PT.cc
-//  Rev:                R25A
+//  Rev:                R25B
 //  Prodnr:             CNL 113 531
 //  Contact:            http://ttcn.ericsson.se
 //  Reference:
@@ -2190,10 +2189,14 @@ int IPL4asp__PT_PROVIDER::outgoing_send_core(const ASP__SendTo& asp,  Socket__AP
   IPL4_DEBUG("IPL4asp__PT_PROVIDER::outgoing_send_core: ASP SendTo: enter");
   testIfInitialized();
   SockType type;
+  int local_conn_id=asp.connId();
+  if(lazy_conn_id_level && local_conn_id==-1){
+    local_conn_id=lonely_conn_id;
+  }
   ProtoTuple::union_selection_type proto = ProtoTuple::ALT_unspecified;
   if (asp.proto().ispresent())
     proto = asp.proto()().get_selection();
-  if (getAndCheckSockType(asp.connId(), proto, type)) {
+  if (getAndCheckSockType(local_conn_id, proto, type)) {
     if (asp.remPort() < 0 || asp.remPort() > 65535){
       setResult(result, PortError::ERROR__INVALID__INPUT__PARAMETER, asp.connId());
       return -1;
@@ -2228,9 +2231,9 @@ int IPL4asp__PT_PROVIDER::outgoing_send_core(const ASP__SendTo& asp,  Socket__AP
     }
     if (asp.proto().ispresent()) {
       IPL4_DEBUG("IPL4asp__PT_PROVIDER::outgoing_send_core: ASP SendTo: calling sendNonBlocking with proto");
-      return sendNonBlocking(asp.connId(), (sockaddr *)&to, toLen, type, asp.msg(), result, asp.proto());
+      return sendNonBlocking(local_conn_id, (sockaddr *)&to, toLen, type, asp.msg(), result, asp.proto());
     } else {
-      return sendNonBlocking(asp.connId(), (sockaddr *)&to, toLen, type, asp.msg(), result);
+      return sendNonBlocking(local_conn_id, (sockaddr *)&to, toLen, type, asp.msg(), result);
     }
   } else {
     setResult(result, PortError::ERROR__INVALID__INPUT__PARAMETER, asp.connId());
