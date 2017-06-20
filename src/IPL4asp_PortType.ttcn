@@ -223,9 +223,9 @@ module IPL4asp_PortType {
      accordingly.
   */
   type port IPL4asp_PT message {
-    out ASP_SendTo
-    out ASP_Send
-    in ASP_RecvFrom
+    out ASP_SendTo;
+    out ASP_Send;
+    in ASP_RecvFrom;
     in ASP_Event
   } with {extension "provider"}
 
