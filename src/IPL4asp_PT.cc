@@ -1,15 +1,16 @@
 ///////////////////////////////////////////////////////////////////////////////
-//
-// Copyright (c) 2000-2017 Ericsson Telecom AB
-//
-// All rights reserved. This program and the accompanying materials
-// are made available under the terms of the Eclipse Public License v1.0
-// which accompanies this distribution, and is available at
-// http://www.eclipse.org/legal/epl-v10.html
+//                                                                           //
+// Copyright Test Competence Center (TCC) ETH 2017                           //
+//                                                                           //
+// The copyright to the computer  program(s) herein  is the property of TCC. //
+// The program(s) may be used and/or copied only with the written permission //
+// of TCC or in accordance with  the terms and conditions  stipulated in the //
+// agreement/contract under which the program(s) has been supplied.          //
+//                                                                           //
 ///////////////////////////////////////////////////////////////////////////////
 //
 //  File:               IPL4asp_PT.cc
-//  Rev:                R25B
+//  Rev:                R27A
 //  Prodnr:             CNL 113 531
 //  Contact:            http://ttcn.ericsson.se
 //  Reference:
@@ -32,6 +33,7 @@
 #include "IPL4asp_PT.hh"
 #include "IPL4asp_PortType.hh"
 #include "Socket_API_Definitions.hh"
+#include <netinet/udp.h>
 
 #define  IPL4_SCTP_WHOLE_MESSAGE_RECEIVED 0
 #define  IPL4_SCTP_EOF_RECEIVED 1
@@ -333,6 +335,7 @@ IPL4asp__PT_PROVIDER::IPL4asp__PT_PROVIDER(const char *par_port_name)
   defaultRemPort = -1;
   default_mode = 0;
   default_proto = 0;
+  connId_release_confirmed = false;
   backlog = SOMAXCONN;
   defaultGetMsgLen = simpleGetMsgLen;
   defaultGetMsgLen_forConnClosedEvent = simpleGetMsgLen; // by default we pass up to TTCN the remaining buffer content on connClosed
@@ -476,6 +479,13 @@ void IPL4asp__PT_PROVIDER::set_parameter(const char *parameter_name,
       default_mode = 2;
     } else {
       default_mode = 0;
+    }
+    
+  } else if (!strcasecmp(parameter_name, "connId_release_mode")) {
+    if(!strcasecmp(parameter_value, "confirmed")){
+      connId_release_confirmed = true;
+    } else {
+      connId_release_confirmed = false;
     }
     
   } else if (!strcasecmp(parameter_name, "map_protocol")) {
@@ -853,8 +863,8 @@ void IPL4asp__PT_PROVIDER::Handle_Fd_Event_Writable(int fd)
           {
           case FAIL:
             IPL4_DEBUG("IPL4asp__PT_PROVIDER::Handle_Fd_Event_Writable: SSL mapping failed for client socket: %d", sockList[it->second].sock);
-            if (ConnDel(it->second) == -1) IPL4_DEBUG("IPL4asp__PT_PROVIDER::Handle_Fd_Event_Writable: unable to close socket");
             sendError(PortError::ERROR__SOCKET, it->second);
+            if (ConnDel(it->second) == -1) IPL4_DEBUG("IPL4asp__PT_PROVIDER::Handle_Fd_Event_Writable: unable to close socket");
             return;
           case WANT_READ:
             IPL4_DEBUG("DONT WRITE ON %i", fd);
@@ -1063,9 +1073,9 @@ void IPL4asp__PT_PROVIDER::Handle_Fd_Event_Readable(int fd)
       break;
     case FAIL:
       IPL4_DEBUG("IPL4asp__PT_PROVIDER::Handle_Fd_Event_Readable: SSL mapping failed for client socket: %d", connId);
-      if (ConnDel(connId) == -1) IPL4_DEBUG("IPL4asp__PT_PROVIDER::Handle_Fd_Event_Readable: unable to close socket");
       sendError(PortError::ERROR__SOCKET, it->second);
       sendConnClosed(connId, asp.remName(), asp.remPort(), asp.locName(), asp.locPort(), asp.proto(), asp.userData());
+      if (ConnDel(connId) == -1) IPL4_DEBUG("IPL4asp__PT_PROVIDER::Handle_Fd_Event_Readable: unable to close socket");
       return;
     case WANT_READ:
     case WANT_WRITE:
@@ -1190,7 +1200,6 @@ void IPL4asp__PT_PROVIDER::Handle_Fd_Event_Readable(int fd)
         sendConnClosed(connId, asp.remName(), asp.remPort(), asp.locName(), asp.locPort(), asp.proto(), asp.userData());
           if (ConnDel(connId) == -1) {
             IPL4_DEBUG("IPL4asp__PT_PROVIDER::Handle_Fd_Event_Readable: ConnDel failed");
-            sendError(PortError::ERROR__SOCKET, connId);
           }
       }
 
@@ -1353,7 +1362,6 @@ void IPL4asp__PT_PROVIDER::Handle_Fd_Event_Readable(int fd)
         if(!dontCloseConn) {
           if (ConnDel(connId) == -1) {
             IPL4_DEBUG("IPL4asp__PT_PROVIDER::Handle_Fd_Event_Readable: ConnDel failed");
-            sendError(PortError::ERROR__SOCKET, connId);
           }
         }
         closingPeerLen = 0;
@@ -1481,7 +1489,6 @@ void IPL4asp__PT_PROVIDER::Handle_Fd_Event_Readable(int fd)
 
             if (ConnDel(connId) == -1) {
               IPL4_DEBUG("IPL4asp__PT_PROVIDER::Handle_Fd_Event_Readable: ConnDel failed");
-              sendError(PortError::ERROR__SOCKET, connId);
             }
             closingPeerLen = 0;
     	  }
@@ -1542,7 +1549,6 @@ void IPL4asp__PT_PROVIDER::Handle_Fd_Event_Readable(int fd)
 
         if (ConnDel(connId) == -1) {
           IPL4_DEBUG("IPL4asp__PT_PROVIDER::Handle_Fd_Event_Readable: ConnDel failed");
-          sendError(PortError::ERROR__SOCKET, connId);
         }
         closingPeerLen = 0;
         break;
@@ -1601,11 +1607,10 @@ void IPL4asp__PT_PROVIDER::Handle_Fd_Event_Readable(int fd)
     	    event.connClosed() = ConnectionClosedEvent(connId,asp.remName(), asp.remPort(),
     			                                     asp.locName(), asp.locPort(),
     	                                             asp.proto(), asp.userData());
+    	    incoming_message(event);
     	    if (ConnDel(connId) == -1) {
     	      IPL4_DEBUG("IPL4asp__PT_PROVIDER::Handle_Fd_Event_Readable: ConnDel failed");
-    	      sendError(PortError::ERROR__SOCKET, connId);
     	    }
-    	    incoming_message(event);
     	    closingPeerLen = 0;
           }
     	}
@@ -1631,11 +1636,10 @@ void IPL4asp__PT_PROVIDER::Handle_Fd_Event_Readable(int fd)
     	  event.connClosed() = ConnectionClosedEvent(connId,asp.remName(), asp.remPort(),
     			                                     asp.locName(), asp.locPort(),
     	                                             asp.proto(), asp.userData());
+    	  incoming_message(event);
     	  if (ConnDel(connId) == -1) {
     	    IPL4_DEBUG("IPL4asp__PT_PROVIDER::Handle_Fd_Event_Readable: ConnDel failed");
-    	    sendError(PortError::ERROR__SOCKET, connId);
     	  }
-    	  incoming_message(event);
     	  closingPeerLen = 0;
     	  break;
         case IPL4_SCTP_SENDER_DRY_EVENT:
@@ -1822,7 +1826,6 @@ void IPL4asp__PT_PROVIDER::handle_event(int /*fd*/, int connId, const void *buf)
             proto_close, sockList[connId].userData);
         if (ConnDel(connId) == -1) {
           IPL4_DEBUG("IPL4asp__PT_PROVIDER::handle_event: ConnDel failed");
-          sendError(PortError::ERROR__SOCKET, connId);
         }
         closingPeerLen = 0;
 
@@ -2052,7 +2055,7 @@ void IPL4asp__PT_PROVIDER::user_unmap(const char *system_port)
         } else {
           if(sockList[i].ref_count==0){
             EINSS7_00SctpDestroyReq(sockList[i].endpoint_id);
-            ConnDelEin(i);
+            ConnDelEin(i,true);
           }
         }
 
@@ -2061,7 +2064,7 @@ void IPL4asp__PT_PROVIDER::user_unmap(const char *system_port)
 #endif
 
         if (sockList[i].sock > 0)
-          ConnDel(i);
+          ConnDel(i,true);
     }
   }
   sockListCnt = 0;
@@ -2509,6 +2512,7 @@ int IPL4asp__PT_PROVIDER::sendNonBlocking(const ConnectionId& connId, sockaddr *
         setResult(result,PortError::ERROR__HOSTNAME, (int)connId);
       }*/
       reportRemainingData_beforeConnClosed(connId, event.connClosed().remName(), event.connClosed().remPort(), event.connClosed().locName(), event.connClosed().locPort(), event.connClosed().proto(), event.connClosed().userData());
+      incoming_message(event);
       if (ConnDel((int)connId) == -1) {
         IPL4_DEBUG("IPL4asp__PT_PROVIDER::sendNonBlocking: ConnDel failed");
         setResult(result,PortError::ERROR__SOCKET, (int)connId);
@@ -2519,7 +2523,6 @@ int IPL4asp__PT_PROVIDER::sendNonBlocking(const ConnectionId& connId, sockaddr *
         IPL4_DEBUG("IPL4asp__PT_PROVIDER::sendNonBlocking: SetNameAndPort failed");
         setResult(result,PortError::ERROR__HOSTNAME, (int)connId);
       }*/
-      incoming_message(event);
       return -1;
     }
 
@@ -2591,6 +2594,7 @@ int IPL4asp__PT_PROVIDER::sendNonBlocking(const ConnectionId& connId, sockaddr *
         }*/
 
         reportRemainingData_beforeConnClosed(connId, event.connClosed().remName(), event.connClosed().remPort(), event.connClosed().locName(), event.connClosed().locPort(), event.connClosed().proto(), event.connClosed().userData());
+        incoming_message(event);
 
         if (ConnDel((int)connId) == -1) {
           IPL4_DEBUG("IPL4asp__PT_PROVIDER::sendNonBlocking: ConnDel failed");
@@ -2602,7 +2606,6 @@ int IPL4asp__PT_PROVIDER::sendNonBlocking(const ConnectionId& connId, sockaddr *
           IPL4_DEBUG("IPL4asp__PT_PROVIDER::sendNonBlocking: SetNameAndPort failed");
           setResult(result,PortError::ERROR__HOSTNAME, (int)connId);
         }*/
-        incoming_message(event);
         closingPeerLen = 0;
       }
       dontCloseConnectionId = -1;
@@ -2877,7 +2880,7 @@ bool IPL4asp__PT_PROVIDER::setOptions(const OptionList& options,
   //    IPL4_DEBUG("IPL4asp__PT_PROVIDER::setOptions: Invalid options");
   //    return false;
   //  }
-  int iR = -1, iK = -1, iM = -1, iL = -1, iSSL=-1, iNoDelay=-1, iFreeBind=-1;
+  int iR = -1, iK = -1, iM = -1, iL = -1, iSSL=-1, iNoDelay=-1, iFreeBind=-1, iUDP_ENCAP=-1;
 #ifdef IPL4_USE_SSL
   int iS =-1;
 #endif
@@ -2902,6 +2905,7 @@ bool IPL4asp__PT_PROVIDER::setOptions(const OptionList& options,
         }
       }
       break;
+    case Option::ALT_udp__encap: iUDP_ENCAP = i; break;
     default: break;
     }
   }
@@ -3072,7 +3076,25 @@ bool IPL4asp__PT_PROVIDER::setOptions(const OptionList& options,
         IPL4_DEBUG("IPL4asp__PT_PROVIDER::sendNonBlocking: Socket option SO_BROADCAST on ");
       }
     }
-  }  
+  }
+
+  /* set UDP_ENCAP */
+  if(sock != -1 && iUDP_ENCAP != -1 && (udpProto))
+  {
+    // UDP_ENCAP
+    int udp_encap=(int)options[iUDP_ENCAP].udp__encap();
+    if (setsockopt(sock, IPPROTO_UDP, UDP_ENCAP, (char *)&udp_encap, sizeof(udp_encap)) < 0) { // IPPROTO_UDP == SOL_UDP
+      IPL4_DEBUG("f__IPL4__PROVIDER__setOptions: setsockopt UDP_ENCAP to %d on "
+      "socket %d failed: %d %s", udp_encap, sock, errno,strerror(errno));
+      return false;
+    }
+    IPL4_DEBUG("IPL4asp__PT_PROVIDER::setOptions: UDP option UDP_ENCAP on "
+    "socket %d is set to value %d", sock, udp_encap);
+
+  } else if (iUDP_ENCAP!=-1){
+    IPL4_DEBUG("f__IPL4__PROVIDER__setOptions: UDP_ENCAP called for not connected UDP socket ");
+    return false;
+  }
 
   /* Setting keep alive TCP*/
   if (iK != -1 && !tcpProto) {
@@ -3599,12 +3621,28 @@ void SockDesc::clear()
   
   delete alpn; alpn=NULL;
 
+  Free(ssl_key_file);
+  ssl_key_file = NULL;
+  Free(ssl_certificate_file );
+  ssl_certificate_file = NULL;
+  Free(ssl_trustedCAlist_file);
+  ssl_trustedCAlist_file = NULL;
+  Free(ssl_cipher_list);
+  ssl_cipher_list = NULL;
+  Free(ssl_password);
+  ssl_password = NULL;
+
+  if(dtlsSrtpProfiles){
+    Free(dtlsSrtpProfiles);
+    dtlsSrtpProfiles=NULL;
+  }
+
   sock = SOCK_NONEX;
   msgLen = -1;
   nextFree = -1;
 }
 
-int IPL4asp__PT_PROVIDER::ConnDel(int connId)
+int IPL4asp__PT_PROVIDER::ConnDel(int connId, bool forced)
 {
   IPL4_DEBUG("IPL4asp__PT_PROVIDER::ConnDel: enter: connId: %d", connId);
   int sock = sockList[connId].sock;
@@ -3630,26 +3668,34 @@ int IPL4asp__PT_PROVIDER::ConnDel(int connId)
   fd2IndexMap.erase(sockList[connId].sock);
 
   sockList[connId].clear();
+  if(!connId_release_confirmed || forced){
+    ConnFree(connId);
+  } else {
+    sockList[connId].sock = SockDesc::WAIT_FOR_RELEASE;
+    incoming_message(ASP__ConnId__ReadyToRelease(connId));
+  }
+  return connId;
+} // IPL4asp__PT_PROVIDER::ConnDel
+
+void IPL4asp__PT_PROVIDER::ConnFree(int connId)
+{
+  IPL4_DEBUG("IPL4asp__PT_PROVIDER::ConnFree: enter: connId: %d", connId);
+  sockList[connId].sock = SockDesc::SOCK_NONEX;
   sockList[lastFreeSock].nextFree = connId;
   lastFreeSock = connId;
   sockListCnt--;
-  if(sockList[connId].dtlsSrtpProfiles){
-    Free(sockList[connId].dtlsSrtpProfiles);
-    sockList[connId].dtlsSrtpProfiles=NULL;
-  }
-  Free(sockList[connId].ssl_key_file);
-  sockList[connId].ssl_key_file = NULL;
-  Free(sockList[connId].ssl_certificate_file );
-  sockList[connId].ssl_certificate_file = NULL;
-  Free(sockList[connId].ssl_trustedCAlist_file);
-  sockList[connId].ssl_trustedCAlist_file = NULL;
-  Free(sockList[connId].ssl_cipher_list);
-  sockList[connId].ssl_cipher_list = NULL;
-  Free(sockList[connId].ssl_password);
-  sockList[connId].ssl_password = NULL;
 
-  return connId;
-} // IPL4asp__PT_PROVIDER::ConnDel
+  if(sockListCnt==1) {
+    unsigned int i=0;
+    while(i<sockListSize && sockList[i].sock<0){
+      i++;
+    }
+    lonely_conn_id=i;
+  }
+  else {lonely_conn_id=-1;}
+ 
+  return;
+} // IPL4asp__PT_PROVIDER::ConnFree
 
 
 int IPL4asp__PT_PROVIDER::setUserData(int connId, int userData)
@@ -5091,7 +5137,7 @@ Result f__IPL4__PROVIDER__connect(IPL4asp__PT_PROVIDER& portRef, const HostName&
           // removed from connList in case of error. But it is going to be removed,
           // if the socket has been created in this operation.
           if ((int)connId == -1) {
-            if (portRef.ConnDel(result.connId()()) == -1)
+            if (portRef.ConnDel(result.connId()(),true) == -1)
               IPL4_PORTREF_DEBUG(portRef, "f__IPL4__PROVIDER__connect: unable to close socket %d (udp): %s",
                   sock, strerror(errno));
             result.connId() = OMIT_VALUE;
@@ -5202,7 +5248,7 @@ Result f__IPL4__PROVIDER__connect(IPL4asp__PT_PROVIDER& portRef, const HostName&
       }
       if (socketError) {
         if (my_proto.get_selection() != ProtoTuple::ALT_udp || (int)connId == -1) {
-          if (portRef.ConnDel(result.connId()()) == -1)
+          if (portRef.ConnDel(result.connId()(),true) == -1)
             IPL4_PORTREF_DEBUG(portRef, "f__IPL4__PROVIDER__connect: unable to close socket");
           result.connId() = OMIT_VALUE;
         }
@@ -5225,7 +5271,7 @@ Result f__IPL4__PROVIDER__connect(IPL4asp__PT_PROVIDER& portRef, const HostName&
       default: //value
         IPL4_PORTREF_DEBUG(portRef, "f__IPL4__PROVIDER__connect: SSL mapping failed for client socket: %d", portRef.sockList[(int)result.connId()()].sock);
         SET_OS_ERROR_CODE;
-        if (portRef.ConnDel(result.connId()()) == -1)IPL4_PORTREF_DEBUG(portRef, "f__IPL4__PROVIDER__connect: unable to close socket");
+        if (portRef.ConnDel(result.connId()(),true) == -1)IPL4_PORTREF_DEBUG(portRef, "f__IPL4__PROVIDER__connect: unable to close socket");
         result.connId() = OMIT_VALUE;
         RETURN_ERROR(ERROR__SOCKET);
         break;
@@ -5354,7 +5400,7 @@ Result f__IPL4__PROVIDER__connect(IPL4asp__PT_PROVIDER& portRef, const HostName&
         socketError = true;
       }
       if (socketError) {
-        if (portRef.ConnDel(result.connId()()) == -1)
+        if (portRef.ConnDel(result.connId()(),true) == -1)
           IPL4_PORTREF_DEBUG(portRef, "f__IPL4__PROVIDER__connect: unable to close socket");
         result.connId() = OMIT_VALUE;
         RETURN_ERROR(ERROR__SOCKET);
@@ -5431,11 +5477,11 @@ Result f__IPL4__PROVIDER__close(IPL4asp__PT_PROVIDER& portRef,
   IPL4_PORTREF_DEBUG(portRef, "f__IPL4__PROVIDER__close: enter: connId: %d", (int)connId);
   portRef.testIfInitialized();
   Result result(OMIT_VALUE, OMIT_VALUE, OMIT_VALUE,OMIT_VALUE);
-  if (!portRef.isConnIdValid(connId)) {
-    RETURN_ERROR(ERROR__INVALID__INPUT__PARAMETER);
-  }
   SockType type;
   if (!portRef.getAndCheckSockType(connId, proto.get_selection(), type)) {
+    if(portRef.isConnIdReleaseWait(connId)){
+      return result;
+    }
     RETURN_ERROR(ERROR__INVALID__INPUT__PARAMETER);
   }
 
@@ -5505,6 +5551,15 @@ Result f__IPL4__PROVIDER__getUserData(
   return result;
 } // f__IPL4__PROVIDER__getUserData
 
+
+Result f__IPL4__PROVIDER__port__settings(
+    IPL4asp__PT_PROVIDER& portRef,
+    const CHARSTRING& param__name,
+    const CHARSTRING& param__value)
+{
+  portRef.set_parameter((const char *)param__name,(const char *)param__value);
+  return Result(OMIT_VALUE, OMIT_VALUE, OMIT_VALUE,OMIT_VALUE);
+}
 
 
 Result f__IPL4__PROVIDER__getConnectionDetails(
@@ -5600,6 +5655,26 @@ CHARSTRING f__IPL4__PROVIDER__getSelectedSrtpProfile(
   return portRef.getSelectedSrtpProfile(connId);
 }
 
+Result f__IPL4__PROVIDER__ConnId__release(
+    IPL4asp__PT& portRef,
+    const IPL4asp__Types::ConnectionId& connId)
+{
+  Result result(OMIT_VALUE, OMIT_VALUE, OMIT_VALUE, OMIT_VALUE);
+  if(TTCN_Logger::log_this_event(TTCN_PORTEVENT)){
+    TTCN_Logger::begin_event(TTCN_PORTEVENT);
+    TTCN_Logger::log_event("%s: f__IPL4__ConnId__release: ", portRef.get_name());
+    TTCN_Logger::log_event(" connId ");
+    connId.log();
+    TTCN_Logger::end_event();
+  }
+  if(portRef.isConnIdReleaseWait(connId)){
+    portRef.ConnFree(connId);
+    return Result(OMIT_VALUE, OMIT_VALUE, OMIT_VALUE, OMIT_VALUE);
+  }
+  
+  return Result(PortError::ERROR__INVALID__INPUT__PARAMETER, OMIT_VALUE, -1, "The f_IPL4_ConnId_release called in wrong state");
+}
+
 Result f__IPL4__listen(
     IPL4asp__PT& portRef,
     const HostName& locName,
@@ -5686,6 +5761,16 @@ Result f__IPL4__getConnectionDetails(
 {
   return f__IPL4__PROVIDER__getConnectionDetails(portRef, connId, IPL4param, IPL4paramResult);
 } // f__IPL4__getConnectionDetails
+
+Result f__IPL4__port__settings(
+    IPL4asp__PT& portRef,
+    const CHARSTRING& param__name,
+    const CHARSTRING& param__value
+    )
+{
+  return f__IPL4__PROVIDER__port__settings(portRef,param__name,param__value );
+} // f__IPL4__getConnectionDetails
+
 
 
 void f__IPL4__setGetMsgLen(
@@ -5789,6 +5874,13 @@ OCTETSTRING f__IPL4__exportSctpKey(
     const IPL4asp__Types::ConnectionId& connId)
 {
   return portRef.exportSctpKey(connId);
+}
+
+Result f__IPL4__ConnId__release(
+    IPL4asp__PT& portRef,
+    const IPL4asp__Types::ConnectionId& connId)
+{
+  return f__IPL4__PROVIDER__ConnId__release(portRef,connId);
 }
 
 CHARSTRING f__IPL4__getLocalCertificateFingerprint(
@@ -7552,7 +7644,7 @@ Socket__API__Definitions::Result IPL4asp__PT_PROVIDER::Listen_einsctp(const Host
   Free(ip_struct);
 
   if(EINSS7_00SCTP_OK!=init_result){
-    ConnDelEin(conn_id);
+    ConnDelEin(conn_id,true);
     result.errorCode()=PortError::ERROR__GENERAL;
     result.os__error__code()=init_result;
     result.os__error__text()=get_ein_sctp_error_message(init_result,API_RETURN_CODES);
@@ -7666,7 +7758,7 @@ int IPL4asp__PT_PROVIDER::ConnAddEin(SockType type,
 } // IPL4asp__PT::ConnAdd
 
 
-int IPL4asp__PT_PROVIDER::ConnDelEin(int connId)
+int IPL4asp__PT_PROVIDER::ConnDelEin(int connId,bool forced)
 {
   IPL4_DEBUG("IPL4asp__PT_PROVIDER::ConnDel: enter: connId: %d", connId);
 
@@ -7687,18 +7779,13 @@ int IPL4asp__PT_PROVIDER::ConnDelEin(int connId)
   }
 
   sockList[connId].clear();
-  sockList[lastFreeSock].nextFree = connId;
-  lastFreeSock = connId;
-  sockListCnt--;
-  if(sockListCnt==1) {
-    unsigned int i=0;
-    while(i<sockListSize && sockList[i].sock!=SockDesc::SOCK_NONEX){
-      i++;
-    }
-    lonely_conn_id=i;
+  
+  if(!connId_release_confirmed || forced){
+    ConnFree(connId);
+  } else {
+    sockList[connId].sock = SockDesc::WAIT_FOR_RELEASE;
+    incoming_message(ASP__ConnId__ReadyToRelease(connId));
   }
-  else {lonely_conn_id=-1;}
-
   return connId;
 } // IPL4asp__PT_PROVIDER::ConnDel
 

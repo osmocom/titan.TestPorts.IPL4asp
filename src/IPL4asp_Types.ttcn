@@ -1,15 +1,16 @@
 ///////////////////////////////////////////////////////////////////////////////
-//
-// Copyright (c) 2000-2017 Ericsson Telecom AB
-//
-// All rights reserved. This program and the accompanying materials
-// are made available under the terms of the Eclipse Public License v1.0
-// which accompanies this distribution, and is available at
-// http://www.eclipse.org/legal/epl-v10.html
+//                                                                           //
+// Copyright Test Competence Center (TCC) ETH                                //
+//                                                                           //
+// The copyright to the computer  program(s) herein  is the property of TCC. //
+// The program(s) may be used and/or copied only with the written permission //
+// of TCC or in accordance with  the terms and conditions  stipulated in the //
+// agreement/contract under which the program(s) has been supplied.          //
+//                                                                           //
 ///////////////////////////////////////////////////////////////////////////////
 //
 //  File:               IPL4asp_Types.ttcn
-//  Rev:                R25B
+//  Rev:                R27A
 //  Prodnr:             CNL 113 531
 //  Contact:            http://ttcn.ericsson.se
 //  Reference:
@@ -465,7 +466,8 @@ type union Option {
   SSL_cert_options  cert_options,
   boolean        freebind,
   record of charstring  alpn_list,
-  charstring     tls_hostname
+  charstring     tls_hostname,
+  UDP_ENCAP_Param udp_encap
 }
 
 type record of Option OptionList;
@@ -499,6 +501,33 @@ type record ASP_RecvFrom {
 }
 
 type PortEvent ASP_Event;
+
+
+/*
+How to release connId:
+
+1. Traditional way: The connid is released as soon as either:
+  - The test port processed the incoming close event. 
+  - or the f_IPL4_close was called.
+  
+  Because the connId is released immediately by the test port, the test case
+  code can try to use it, which leads faults. Also the test port can reuse the
+  connId without the knowledge of the test case code
+  
+2. New safe mode: The connId is released only after the confirmation message.
+  After the connId is ready for release (triggered by either the incoming close
+  or f_IPL4_close) the test port put the ASP_ConnId_ReadyToRelease into the 
+  incoming queue. When the application processes the ASP_ConnId_ReadyToRelease
+  it should call the f_IPL4_ConnId_release function to confirm the release
+  of the connId.
+  
+  The new safe mode can be activated either via test port parameter 
+  "connId_release_mode" or f_IPL4_port_settings function
+
+*/
+type record ASP_ConnId_ReadyToRelease{
+  ConnectionId connId
+}
 
 // aliases of PortError values for backward compatibility
 const PortError IPL4_ERROR_GENERAL := ERROR_GENERAL;
@@ -571,6 +600,12 @@ type enumerated IPL4_DigestMethods
   RIPEMD160,
   WHIRLPOOL
 };
+
+type enumerated UDP_ENCAP_Param {
+UDP_ENCAP_ESPINUDP_NON_IKE (1),
+UDP_ENCAP_ESPINUDP	(2),
+UDP_ENCAP_L2TPINUDP	(3)
+}
 
 // currently these two seem to be supported in OpenSSL
 const charstring c_IPL4_DTLS_SRTP_AES128_CM_SHA1_32_Profile := "SRTP_AES128_CM_SHA1_32";

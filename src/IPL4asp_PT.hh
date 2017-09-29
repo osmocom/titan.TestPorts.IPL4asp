@@ -1,15 +1,16 @@
 ///////////////////////////////////////////////////////////////////////////////
-//
-// Copyright (c) 2000-2017 Ericsson Telecom AB
-//
-// All rights reserved. This program and the accompanying materials
-// are made available under the terms of the Eclipse Public License v1.0
-// which accompanies this distribution, and is available at
-// http://www.eclipse.org/legal/epl-v10.html
+//                                                                           //
+// Copyright Test Competence Center (TCC) ETH                                //
+//                                                                           //
+// The copyright to the computer  program(s) herein  is the property of TCC. //
+// The program(s) may be used and/or copied only with the written permission //
+// of TCC or in accordance with  the terms and conditions  stipulated in the //
+// agreement/contract under which the program(s) has been supplied.          //
+//                                                                           //
 ///////////////////////////////////////////////////////////////////////////////
 //
 //  File:               IPL4asp_PT.hh
-//  Rev:                R25B
+//  Rev:                R27A
 //  Prodnr:             CNL 113 531
 //  Contact:            http://ttcn.ericsson.se
 
@@ -200,7 +201,7 @@ typedef union {
 } SockAddr;
 
 typedef struct {
-  enum { SOCK_NONEX = -1, SOCK_CLOSED = -2, SOCK_NOT_KNOWN = -3 };
+  enum { SOCK_NONEX = -1, SOCK_CLOSED = -2, SOCK_NOT_KNOWN = -3, WAIT_FOR_RELEASE = -4 };
   enum { ACTION_NONE = 0, ACTION_BIND = 1, ACTION_CONNECT = 2 , ACTION_DELETE = 3};
   SockType type;
   SSL_TLS_Type ssl_tls_type;
@@ -399,6 +400,7 @@ public:
   int defaultRemPort;
   int default_mode; // 0 - normal, 1 - auto connect, 2 - auto listen
   int default_proto; // 0 - tcp, 1 - tls, 2 - sctp, 3 - udp
+  bool connId_release_confirmed;
 protected:
   void user_map(const char *system_port);
   void user_unmap(const char *system_port);
@@ -411,6 +413,7 @@ protected:
 
   virtual void incoming_message(const IPL4asp__Types::ASP__Event& incoming_par) = 0;
   virtual void incoming_message(const IPL4asp__Types::ASP__RecvFrom& incoming_par) = 0;
+  virtual void incoming_message(const IPL4asp__Types::ASP__ConnId__ReadyToRelease& incoming_par) = 0;
 
 #ifdef IPL4_USE_SSL
   //increase buffer size
@@ -509,7 +512,12 @@ public:
     return ((unsigned int)connId < sockListSize && connId > 0 &&
         sockList != 0 && sockList[connId].sock > 0);
   }
+  inline bool isConnIdReleaseWait(int connId) const {
+    return ((unsigned int)connId < sockListSize && connId > 0 &&
+        sockList != 0 && sockList[connId].sock == SockDesc::WAIT_FOR_RELEASE);
+  }
   SockDesc *sockList;
+  void ConnFree(int connId);
 
 private:
   void Handle_Fd_Event_Error(int fd);
@@ -519,7 +527,7 @@ private:
   int getmsg(int fd, int connId, struct msghdr *msg,void *buf, size_t *buflen, ssize_t *nrp, size_t cmsglen);
   int getmsg(int fd, int connId, ssize_t *nrp, int *ssl_err_msg);
   int ConnAdd(SockType type, int sock, SSL_TLS_Type ssl_tls_type,const IPL4asp__Types::OptionList  *options=NULL, int parentIdx = -1);
-  int ConnDel(int connId);
+  int ConnDel(int connId,bool forced=false);
   int setUserData(int id, int userData);
   int getUserData(int id, int& userData);
   int getConnectionDetails(int id, IPL4asp__Types::IPL4__Param IPL4param, IPL4asp__Types::IPL4__ParamResult& IPL4paramResult);
@@ -631,7 +639,7 @@ public:
       int assoc_enpoint, int parentIdx, const IPL4asp__Types::HostName& locName,
       const IPL4asp__Types::PortNumber& locPort,const IPL4asp__Types::HostName& remName,
       const IPL4asp__Types::PortNumber& remPort, int next_action);
-  int ConnDelEin(int connId);
+  int ConnDelEin(int connId,bool forced=false);
 
   USHORT_T  SctpInitializeConf(
       UCHAR_T returnCode,
