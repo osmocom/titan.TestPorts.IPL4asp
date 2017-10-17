@@ -10,9 +10,8 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
 //  File:               IPL4asp_PortType.ttcn
-//  Rev:                R27A
+//  Rev:                R29A
 //  Prodnr:             CNL 113 531
-//  Updated:            2013-08-27
 //  Contact:            http://ttcn.ericsson.se
 //  Reference:
 
@@ -21,14 +20,14 @@ module IPL4asp_PortType {
   import from IPL4asp_Types all;
 
   /* Function to set test port parameters
-     
+
   */
   external function f_IPL4_port_settings(
     inout IPL4asp_PT portRef,
     in charstring    param_name,
     in charstring    param_value
   ) return Result;
-  
+
   /* Function to release connId after the reception of ASP_ConnId_ReadyToRelease
     work only if the "connId_release_mode" was set to "confirmed"
   */
@@ -36,8 +35,8 @@ module IPL4asp_PortType {
     inout IPL4asp_PT portRef,
     in ConnectionId connId
   ) return Result;
-  
-  
+
+
   /* Listening on a local address, local port, protocol triplet
      If the triplet is to be reused, then the ReuseAddr option has to be
      specified in each usage in listen or connect.
@@ -46,7 +45,7 @@ module IPL4asp_PortType {
      In case of TCP the incoming connection requests are automatically accepted,
      and a connOpened event is sent with a new connection ID. */
   external function f_IPL4_listen(
-    inout IPL4asp_PT portRef, 
+    inout IPL4asp_PT portRef,
     in HostName locName,
     in PortNumber locPort,
     in ProtoTuple proto,
@@ -86,6 +85,14 @@ module IPL4asp_PortType {
     in ProtoTuple proto := { unspecified := {} }
   ) return Result;
 
+  //Returns the value of a given socket option
+  external function f_IPL4_getOpt(
+    inout IPL4asp_PT portRef,
+    in Option option,
+    in ConnectionId connId := -1,
+    in ProtoTuple proto := { unspecified := {} }
+  ) return Extended_Result;
+
   external function f_IPL4_close(
     inout IPL4asp_PT portRef,
     in ConnectionId connId,
@@ -108,8 +115,14 @@ module IPL4asp_PortType {
     inout IPL4asp_PT portRef,
     in ConnectionId connId,
     in IPL4_Param IPL4param,
-    out IPL4_ParamResult IPL4paramResult  
+    out IPL4_ParamResult IPL4paramResult
   ) return Result;
+
+  external function f_IPL4_getConnectedPathMTU(
+    inout IPL4asp_PT portRef,
+    in ConnectionId connId := -1,
+    in ProtoTuple proto := { unspecified := {} }
+  ) return Extended_Result;
 
   external function f_IPL4_send(
     inout IPL4asp_PT portRef,
@@ -233,9 +246,9 @@ module IPL4asp_PortType {
 
   external function f_IPL4_fixedMsgLen(in octetstring stream, inout ro_integer args) return integer;
 
-  /* Tne general purpose transport layer TestPort can be used to send and
+  /* The general purpose transport layer TestPort can be used to send and
      receive messages with the communication ASP.
-     The send ASP can be used to send 
+     The send ASP can be used to send
      Asyncronous event notification occures via the event ASP. E.g. if any
      of the connections is closed, a connection closed event is sent to
      inform the user that the user-connection mapping may have to be updated

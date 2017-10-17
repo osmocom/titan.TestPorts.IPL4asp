@@ -10,7 +10,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
 //  File:               IPL4asp_PT.hh
-//  Rev:                R27A
+//  Rev:                R29A
 //  Prodnr:             CNL 113 531
 //  Contact:            http://ttcn.ericsson.se
 
@@ -29,7 +29,7 @@
 #endif
 
 
-// In order to symplify the sctp usage th euser should define only one 
+// In order to symplify the sctp usage th euser should define only one
 // sctp handling macro
 // Which should be the USE_SCTP only, but for backward compatibility
 // it checks for the old ones
@@ -62,7 +62,7 @@
 #error LKSCTP_1_0_9 defined but the lksctp older than 1.0.7. Use only -DUSE_SCTP, version is automatically selected
 #undef LKSCTP_1_0_9
 #endif
-#else 
+#else
 // 1.0.7 or newer
 #ifdef SCTP_AUTH_CHUNK
 // 1.0.9 or newer
@@ -328,6 +328,7 @@ struct GlobalConnOpts {
   int freebind;
   SSL_Suport ssl_supp;
   char* dtlsSrtpProfiles; /* SRTP_AES128_CM_SHA1_32:SRTP_AES128_CM_SHA1_80 */;
+  int dscp; /* NOT_SET, 0.. */
   GlobalConnOpts () :
     connection_method ( METHOD_ZERO ),
     tcpReuseAddr ( YES ),
@@ -367,7 +368,8 @@ struct GlobalConnOpts {
     sctp_nodelay (NOT_SET),
     freebind(NOT_SET),
     ssl_supp(YES,YES,YES,YES,YES,YES,YES ),
-    dtlsSrtpProfiles (NULL)
+    dtlsSrtpProfiles (NULL),
+    dscp (NOT_SET)
   {}
 };
 
@@ -553,7 +555,10 @@ private:
       Socket__API__Definitions::ProtoTuple::union_selection_type proto, SockType& type);
   bool setOptions(const IPL4asp__Types::OptionList& options,
       int sock, const Socket__API__Definitions::ProtoTuple& proto, bool beforeBind = false);
+  int getOption(const IPL4asp__Types::Option& option,
+        int sock, const Socket__API__Definitions::ProtoTuple& proto, bool beforeBind = false);
   void set_ssl_supp_option(const int& conn_id, const IPL4asp__Types::OptionList& options);
+  void set_dscp_option(int sock);
   inline void testIfInitialized() const;
 
   void setResult(Socket__API__Definitions::Result& result, Socket__API__Definitions::PortError code, const Socket__API__Definitions::ConnectionId& id, int os_error_code = 0);
@@ -625,7 +630,7 @@ public:
   boolean userInstanceIdSpecified;
   boolean sctpInstanceIdSpecified;
   enum code_set {API_RETURN_CODES, CONF_RETURNCODE} ;
-  const char *get_ein_sctp_error_message(const USHORT_T value, const code_set code_set_spec); 
+  const char *get_ein_sctp_error_message(const USHORT_T value, const code_set code_set_spec);
   USHORT_T userId;
 
   void handle_message_from_ein(int fd);
@@ -801,6 +806,12 @@ public:
       const Socket__API__Definitions::ConnectionId& connId,
       const Socket__API__Definitions::ProtoTuple& proto);
 
+  friend Socket__API__Definitions::Extended__Result f__IPL4__PROVIDER__getOpt(
+      IPL4asp__PT_PROVIDER& portRef,
+      const IPL4asp__Types::Option& option,
+      const Socket__API__Definitions::ConnectionId& connId,
+      const Socket__API__Definitions::ProtoTuple& proto);
+
   friend Socket__API__Definitions::Result f__IPL4__PROVIDER__close(
       IPL4asp__PT_PROVIDER& portRef,
       const Socket__API__Definitions::ConnectionId& id,
@@ -821,6 +832,11 @@ public:
       const Socket__API__Definitions::ConnectionId& id,
       const IPL4asp__Types::IPL4__Param& IPL4param,
       IPL4asp__Types::IPL4__ParamResult& IPL4paramResult);
+
+  friend Socket__API__Definitions::Extended__Result f__IPL4__PROVIDER__getConnectedMTU(
+      IPL4asp__PT_PROVIDER& portRef,
+      const Socket__API__Definitions::ConnectionId& connId,
+      const Socket__API__Definitions::ProtoTuple& proto);
 
   friend Socket__API__Definitions::Result f__IPL4__PROVIDER__StartTLS(
       IPL4asp__PT_PROVIDER& portRef,

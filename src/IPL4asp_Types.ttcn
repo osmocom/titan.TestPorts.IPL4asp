@@ -10,7 +10,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
 //  File:               IPL4asp_Types.ttcn
-//  Rev:                R27A
+//  Rev:                R29A
 //  Prodnr:             CNL 113 531
 //  Contact:            http://ttcn.ericsson.se
 //  Reference:
@@ -105,7 +105,7 @@ type Socket_API_Definitions.Socket Socket;
 // Elements:
 //   Type alias of <Socket_API_Definitions.SocketList>
 ///////////////////////////////////////////////////////////
-type Socket_API_Definitions.SocketList SocketList;  
+type Socket_API_Definitions.SocketList SocketList;
 
 //////////////////////////////////////////////////////////
 // Type: UdpTuple
@@ -203,8 +203,8 @@ type Socket_API_Definitions.Extended_Result Extended_Result;
 //
 // Elements:
 //   Type alias of <Socket_API_Definitions.UserData>
-///////////////////////////////////////////////////////////  
-type Socket_API_Definitions.UserData UserData; 
+///////////////////////////////////////////////////////////
+type Socket_API_Definitions.UserData UserData;
 
 //////////////////////////////////////////////////////////
 // Type: PortError
@@ -413,7 +413,7 @@ type record ReuseAddress {
 /* SCTPEvent should be specified in listen or connect.
 It is supported for SCTP. */
 type record SctpEventHandle {
-  boolean sctp_data_io_event optional,   // default is TRUE  
+  boolean sctp_data_io_event optional,   // default is TRUE
   boolean sctp_association_event optional,   // default is TRUE
   boolean sctp_address_event optional,   // default is TRUE
   boolean sctp_send_failure_event optional,   // default is TRUE
@@ -421,7 +421,7 @@ type record SctpEventHandle {
   boolean sctp_shutdown_event optional,   // default is TRUE
   boolean sctp_partial_delivery_event optional,   // default is TRUE
   boolean sctp_adaptation_layer_event optional,   // default is TRUE
-  boolean sctp_authentication_event optional,   // default is TRUE    
+  boolean sctp_authentication_event optional,   // default is TRUE
   boolean sctp_sender_dry_event optional // default is FALSE
 }
 
@@ -438,7 +438,7 @@ type union SSL_protocols{
   boolean TLSv1_2_supported,
   boolean DTLSv1_supported,
   boolean DTLSv1_2_supported
-  
+
 }
 
 type record of SSL_protocols SSL_proto_support
@@ -451,11 +451,18 @@ type record SSL_cert_options {
   charstring  ssl_password optional
 }
 
+type enumerated MTU_discover {
+  PMTUDISC_DONT,    //Never do Path MTU Discovery.
+  PMTUDISC_WANT,    //Use per-route settings.
+  PMTUDISC_DO,      //Always do Path MTU Discovery.
+  MTU               //GET ONLY! Returns the current path MTU
+};
+
 // dtlsSrtpProfiles: colon separated list, ie. "SRTP_AES128_CM_SHA1_32:SRTP_AES128_CM_SHA1_80"
 type union Option {
-  ReuseAddress 	reuseAddress,
-  TcpKeepAlive 	tcpKeepAlive,
-  SctpEventHandle 	sctpEventHandle,
+  ReuseAddress  reuseAddress,
+  TcpKeepAlive  tcpKeepAlive,
+  SctpEventHandle   sctpEventHandle,
   TcpKeepAlive   sslKeepAlive,
   HostList       sctpAdditionalLocalAddresses ,
   integer        sctpEINConfigGroup,
@@ -467,7 +474,9 @@ type union Option {
   boolean        freebind,
   record of charstring  alpn_list,
   charstring     tls_hostname,
-  UDP_ENCAP_Param udp_encap
+  UDP_ENCAP_Param udp_encap,
+  integer         dscp,
+  MTU_discover mtu_discover
 }
 
 type record of Option OptionList;
@@ -507,21 +516,21 @@ type PortEvent ASP_Event;
 How to release connId:
 
 1. Traditional way: The connid is released as soon as either:
-  - The test port processed the incoming close event. 
+  - The test port processed the incoming close event.
   - or the f_IPL4_close was called.
-  
+
   Because the connId is released immediately by the test port, the test case
   code can try to use it, which leads faults. Also the test port can reuse the
   connId without the knowledge of the test case code
-  
+
 2. New safe mode: The connId is released only after the confirmation message.
   After the connId is ready for release (triggered by either the incoming close
-  or f_IPL4_close) the test port put the ASP_ConnId_ReadyToRelease into the 
+  or f_IPL4_close) the test port put the ASP_ConnId_ReadyToRelease into the
   incoming queue. When the application processes the ASP_ConnId_ReadyToRelease
   it should call the f_IPL4_ConnId_release function to confirm the release
   of the connId.
-  
-  The new safe mode can be activated either via test port parameter 
+
+  The new safe mode can be activated either via test port parameter
   "connId_release_mode" or f_IPL4_port_settings function
 
 */
@@ -546,7 +555,7 @@ See the description of f_IPL4_setGetMsgLen.
 */
 type f_getMsgLen f_IPL4_getMsgLen;
 
-/* 
+/*
 Type definition to query IPL4 parameters.
 */
 
@@ -567,8 +576,9 @@ type union IPL4_ParamResult {
 }
 
 
-type enumerated IPL4_IPAddressType 
+type enumerated IPL4_IPAddressType
 {
+  ErrorReadingAddress,
   IPv4,
   IPv6
 };

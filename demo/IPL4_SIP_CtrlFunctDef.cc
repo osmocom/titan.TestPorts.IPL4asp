@@ -10,7 +10,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
 //  File:               IPL4_SIP_CtrFunctDef.cc
-//  Rev:                R27A
+//  Rev:                R29A
 //  Prodnr:             CNL 113 531
 //  Updated:            2008-01-25
 //  Contact:            http://ttcn.ericsson.se
