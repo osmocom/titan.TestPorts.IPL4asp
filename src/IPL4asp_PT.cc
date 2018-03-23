@@ -10,7 +10,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
 //  File:               IPL4asp_PT.cc
-//  Rev:                R29A
+//  Rev:                R29B
 //  Prodnr:             CNL 113 531
 //  Contact:            http://ttcn.ericsson.se
 //  Reference:
@@ -44,6 +44,9 @@
 #define  IPL4_IPV4_ANY_ADDR "0.0.0.0"
 #define  IPL4_IPV6_ANY_ADDR "::"
 
+#ifndef IP_MTU
+#define IP_MTU 14
+#endif
 
 //SSL
 #ifdef IPL4_USE_SSL

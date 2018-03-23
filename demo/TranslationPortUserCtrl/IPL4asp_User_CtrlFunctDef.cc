@@ -9,7 +9,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
 //  File:               IPL4asp_User_CtrlFuncDef.ttcn
-//  Rev:                R29A
+//  Rev:                R29B
 //  Prodnr:             CNL 113 531
 //  Updated:            2008-01-28
 //  Contact:            http://ttcn.ericsson.se
