@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //                                                                           //
-// Copyright Test Competence Center (TCC) ETH 2017                           //
+// Copyright Test Competence Center (TCC) ETH 2018                           //
 //                                                                           //
 // The copyright to the computer  program(s) herein  is the property of TCC. //
 // The program(s) may be used and/or copied only with the written permission //
@@ -10,7 +10,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
 //  File:               IPL4asp_PT.cc
-//  Rev:                R29B
+//  Rev:                R30A
 //  Prodnr:             CNL 113 531
 //  Contact:            http://ttcn.ericsson.se
 //  Reference:
@@ -110,6 +110,9 @@ static int ipl4_tls_alpn_cb (SSL *ssl, const unsigned char **out,
 using namespace IPL4asp__Types;
 
 namespace IPL4asp__PortType {
+
+int pskIdentityIdx;
+int pskKeyIdx;
 
 #define SET_OS_ERROR_CODE (result.os__error__code()() = errno)
 #define RETURN_ERROR(code) {              \
@@ -432,6 +435,9 @@ IPL4asp__PT_PROVIDER::IPL4asp__PT_PROVIDER(const char *par_port_name)
   ssl_reconnect_delay = 10000; //in milisec, so by default 0.01sec
   memset(ssl_cookie_secret, 0, IPL4_COOKIE_SECRET_LENGTH);
   ssl_cookie_initialized = 0;
+  psk_identity=NULL;
+  psk_identity_hint=NULL;
+  psk_key=NULL;
 #endif
 } // IPL4asp__PT_PROVIDER::IPL4asp__PT_PROVIDER
 
@@ -461,6 +467,9 @@ IPL4asp__PT_PROVIDER::~IPL4asp__PT_PROVIDER()
   delete [] ssl_trustedCAlist_file;
   delete [] ssl_cipher_list;
   delete [] ssl_password;
+  delete [] psk_identity;
+  delete [] psk_identity_hint;
+  delete [] psk_key;
 #endif
 } // IPL4asp__PT_PROVIDER::~IPL4asp__PT_PROVIDER
 
@@ -860,6 +869,15 @@ void IPL4asp__PT_PROVIDER::set_parameter(const char *parameter_name,
     ssl_reconnect_attempts = atoi ( parameter_value );
   } else if (!strcmp(parameter_name, "ssl_reconnect_delay")){
     ssl_reconnect_delay = atoi ( parameter_value );
+  } else if(strcmp(parameter_name,psk_identity_name()) == 0) {
+    psk_identity=new char[strlen(parameter_value)+1];
+    strcpy(psk_identity, parameter_value);
+  } else if(strcmp(parameter_name,psk_identity_hint_name()) == 0) {
+    psk_identity_hint=new char[strlen(parameter_value)+1];
+    strcpy(psk_identity_hint, parameter_value);
+  } else if(strcmp(parameter_name, psk_key_name()) == 0) {
+    psk_key=new char[strlen(parameter_value)+1];
+    strcpy(psk_key, parameter_value);
   }
 #endif
  else if (!strcasecmp(parameter_name, "noDelay")) {
@@ -2824,6 +2842,21 @@ void IPL4asp__PT_PROVIDER::set_ssl_supp_option(const int& conn_id, const IPL4asp
         sockList[conn_id].dtlsSrtpProfiles = mcopystr((const char*)options[k].dtlsSrtpProfiles());
       }
       break;
+    case Option::ALT_psk__options: {
+        if(options[k].psk__options().psk__identity().ispresent()){
+          Free(sockList[conn_id].psk_identity);
+          sockList[conn_id].psk_identity= mcopystr((const char*)options[k].psk__options().psk__identity()());
+        }
+        if(options[k].psk__options().psk__identity__hint().ispresent()){
+          Free(sockList[conn_id].psk_identity_hint);
+          sockList[conn_id].psk_identity_hint= mcopystr((const char*)options[k].psk__options().psk__identity__hint()());
+        }
+        if(options[k].psk__options().psk__key().ispresent()){
+          Free(sockList[conn_id].psk_key);
+          sockList[conn_id].psk_key= mcopystr((const char*)options[k].psk__options().psk__key()());
+        }
+      }
+      break;
     case Option::ALT_cert__options: {
         if(options[k].cert__options().ssl__key__file().ispresent()){
           Free(sockList[conn_id].ssl_key_file);
@@ -2955,6 +2988,7 @@ bool IPL4asp__PT_PROVIDER::setOptions(const OptionList& options,
 
     // Process MTU Discovery for IPv6
     if (sock != -1 && iMtuDiscover != -1){
+#if !defined(WIN32)
       int flag = -1;
       MTU__discover mtu = options[iMtuDiscover].mtu__discover();
 
@@ -2985,6 +3019,7 @@ bool IPL4asp__PT_PROVIDER::setOptions(const OptionList& options,
       } else {
         TTCN_warning( "f__IPL4__PROVIDER__setOptions: error reading socket address!");
       }
+#endif
     }
 
     // Process FREEBIND
@@ -3154,6 +3189,12 @@ bool IPL4asp__PT_PROVIDER::setOptions(const OptionList& options,
   }
 
   /* set UDP_ENCAP */
+#if defined(WIN32)
+  if (iUDP_ENCAP!=-1){
+    IPL4_DEBUG("f__IPL4__PROVIDER__setOptions: UDP_ENCAP not supported on Cygwin ");
+    return false;
+  }
+#else
   if(sock != -1 && iUDP_ENCAP != -1 && (udpProto))
   {
     // UDP_ENCAP
@@ -3170,7 +3211,7 @@ bool IPL4asp__PT_PROVIDER::setOptions(const OptionList& options,
     IPL4_DEBUG("f__IPL4__PROVIDER__setOptions: UDP_ENCAP called for not connected UDP socket ");
     return false;
   }
-
+#endif
   /* Setting keep alive TCP*/
   if (iK != -1 && !tcpProto) {
     IPL4_DEBUG("IPL4asp__PT_PROVIDER::setOptions: Unsupported protocol for tcp keep alive");
@@ -3509,6 +3550,7 @@ int IPL4asp__PT_PROVIDER::getOption(const Option& option,
     int sock, const Socket__API__Definitions::ProtoTuple& proto, bool beforeBind)
 {
   IPL4_DEBUG("IPL4asp__PT_PROVIDER::getOption: enter, sock: %i", sock);
+#if !defined(WIN32)
   int iMtuDiscover=-1;
 
   switch (option.get_selection()) {
@@ -3548,7 +3590,7 @@ int IPL4asp__PT_PROVIDER::getOption(const Option& option,
     }
     RETURN_SOCKET_OPTION(); //Can be used for remaining options
   }
-
+#endif
   //TODO: Add remaining options
 
   //The remaining options are not yet supported
@@ -3629,6 +3671,21 @@ int IPL4asp__PT_PROVIDER::ConnAdd(SockType type, int sock, SSL_TLS_Type ssl_tls_
     } else {
       sockList[i].ssl_password = NULL;
     }
+    if(sockList[parentIdx].psk_identity){
+      sockList[i].psk_identity = mcopystr(sockList[parentIdx].psk_identity);
+    } else {
+      sockList[i].psk_identity = NULL;
+    }
+    if(sockList[parentIdx].psk_identity_hint){
+      sockList[i].psk_identity_hint = mcopystr(sockList[parentIdx].psk_identity_hint);
+    } else {
+      sockList[i].psk_identity_hint = NULL;
+    }
+    if(sockList[parentIdx].psk_key){
+      sockList[i].psk_key = mcopystr(sockList[parentIdx].psk_key);
+    } else {
+      sockList[i].psk_key = NULL;
+    }
 
     if(sockList[parentIdx].tls_hostname){
      sockList[i].tls_hostname = new CHARSTRING(*sockList[parentIdx].tls_hostname);
@@ -3664,6 +3721,9 @@ int IPL4asp__PT_PROVIDER::ConnAdd(SockType type, int sock, SSL_TLS_Type ssl_tls_
     sockList[i].ssl_password = NULL;
     sockList[i].tls_hostname = NULL;
     sockList[i].alpn =NULL;
+    sockList[i].psk_identity = NULL;
+    sockList[i].psk_identity_hint = NULL;
+    sockList[i].psk_key = NULL;
     if(options){
       IPL4_DEBUG("IPL4asp__PT_PROVIDER::ConnAdd: connId: set ssl options for connId : %d", i);
       set_ssl_supp_option(i,*options);
@@ -3794,6 +3854,12 @@ void SockDesc::clear()
   ssl_cipher_list = NULL;
   Free(ssl_password);
   ssl_password = NULL;
+  Free(psk_identity);
+  psk_identity = NULL;
+  Free(psk_identity_hint);
+  psk_identity_hint = NULL;
+  Free(psk_key);
+  psk_key = NULL;
 
   if(dtlsSrtpProfiles){
     Free(dtlsSrtpProfiles);
@@ -4075,7 +4141,6 @@ void IPL4asp__PT_PROVIDER::starttls(const ConnectionId& connId, const BOOLEAN& s
     setResult(result,PortError::ERROR__INVALID__CONNECTION,connId,0);
     return;
   }
-
   switch(sockList[connId].type) {
   case IPL4asp_UDP:
   //case IPL4asp_UDP_LIGHT:
@@ -6222,6 +6287,9 @@ const char* IPL4asp__PT_PROVIDER::ssl_password_name()               { return "ss
 //const char* IPL4asp__PT_PROVIDER::ssl_dtls_srtp_profiles_name()     { return "ssl_dtls_srtp_profiles";}
 const char* IPL4asp__PT_PROVIDER::ssl_cipher_list_name()            { return "ssl_allowed_ciphers_list";}
 const char* IPL4asp__PT_PROVIDER::ssl_verifycertificate_name()      { return "ssl_verify_certificate";}
+const char* IPL4asp__PT_PROVIDER::psk_identity_name()               { return "psk_identity";}
+const char* IPL4asp__PT_PROVIDER::psk_identity_hint_name()          { return "psk_identity_hint";}
+const char* IPL4asp__PT_PROVIDER::psk_key_name()                    { return "psk_key";}
 
 SSL_CTX    * IPL4asp__PT_PROVIDER::get_selected_ssl_ctx(int client_id) const{
   if((sockList[client_id].type == IPL4asp_TCP) || (sockList[client_id].type == IPL4asp_TCP_LISTEN)) {
@@ -6260,7 +6328,8 @@ bool IPL4asp__PT_PROVIDER::ssl_create_contexts_and_obj(int client_id) {
   } else {
     selected_ctx=get_selected_ssl_ctx(client_id);
   }
-
+  
+  set_usePskHint(client_id,selected_ctx);
   IPL4_DEBUG("IPL4asp__PT_PROVIDER::ssl_create_contexts_and_obj: Create a new SSL object for client %d", client_id);
   if (!selected_ctx)
   {
@@ -6275,6 +6344,8 @@ bool IPL4asp__PT_PROVIDER::ssl_create_contexts_and_obj(int client_id) {
     IPL4_DEBUG("IPL4asp__PT_PROVIDER::ssl_create_contexts_and_obj: Creation of SSL object failed for client: %d", client_id);
     return false;
   }
+  set_psk_ex_data(client_id);
+  set_psk(client_id);
 
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
   if(sockList[client_id].tls_hostname){
@@ -6311,6 +6382,7 @@ bool IPL4asp__PT_PROVIDER::ssl_create_contexts_and_obj(int client_id) {
     IPL4_DEBUG("IPL4asp__PT_PROVIDER::ssl_create_contexts_and_obj: setSslObj failed for client: %d", client_id);
     return false;
   }
+  
 #ifdef SSL_OP_NO_SSLv2
   if(sockList[client_id].ssl_supp.SSLv2 == GlobalConnOpts::NO){
     SSL_set_options(ssl_current_ssl,SSL_OP_NO_SSLv2);
@@ -6366,8 +6438,73 @@ bool IPL4asp__PT_PROVIDER::ssl_create_contexts_and_obj(int client_id) {
       TTCN_error("DTLS is not supported by the current OpenSSL API. libopenssl >=1.0.1 is required!");
 #endif
   }
-
   return true;
+}
+
+unsigned int psk_server_cb(SSL *ssl, const char *identity,
+	      unsigned char *psk, unsigned int max_psk_len)
+{
+  int ret;
+  (void)(ssl);//unused; prevent gcc warning;
+  char *pskIdentity;
+  char *pskKey;
+  pskIdentity=(char *)SSL_get_ex_data(ssl, pskIdentityIdx);
+  pskKey=(char *)SSL_get_ex_data(ssl, pskKeyIdx);
+  
+  
+  if (!identity) {
+    return 0;
+  }
+
+  if (strcmp(identity,pskIdentity ) != 0) {
+    return 0;
+  }
+  if (strlen(pskKey)>=(max_psk_len*2)){
+    return 0;
+  }
+
+  /* convert the PSK key to binary */
+  ret = strlen(pskKey)/2;
+  memcpy(psk,str2oct(pskKey),ret);
+  
+  if (ret<=0) {
+    return 0;
+  }
+  return ret;
+}
+
+unsigned int psk_client_cb(SSL *ssl, const char *hint, char *identity,
+	unsigned int max_identity_len, unsigned char *psk, unsigned int max_psk_len)
+{
+  int ret;
+  char *pskIdentity;
+  char *pskKey;
+  
+  (void)(ssl); //unused; prevent gcc warning;
+  pskIdentity=(char *)SSL_get_ex_data(ssl, pskIdentityIdx);
+  pskKey=(char *)SSL_get_ex_data(ssl, pskKeyIdx);
+
+  if (!hint){
+    TTCN_warning("NULL received PSK identity hint, continuing anyway");
+  }
+
+  ret = snprintf(identity, max_identity_len, "%s", pskIdentity);
+  if (ret < 0 || (unsigned int)ret > max_identity_len){
+    return 0;
+  }
+
+  if (strlen(pskKey)>=(max_psk_len*2)){
+    return 0;
+  }
+
+  ret = strlen(pskKey)/2;
+  /* convert the PSK key to binary */ 
+  memcpy(psk,str2oct(pskKey),ret);
+  
+  if (ret<=0) {
+    return 0;
+  }
+  return ret;
 }
 
 SSL_HANDSHAKE_RESULT IPL4asp__PT_PROVIDER::perform_ssl_handshake(int client_id) {
@@ -6394,6 +6531,7 @@ SSL_HANDSHAKE_RESULT IPL4asp__PT_PROVIDER::perform_ssl_handshake(int client_id) 
       return FAIL;
     }
   }
+  
   // Context change for SSL objects may come here in the
   // future.
 
@@ -6403,7 +6541,6 @@ SSL_HANDSHAKE_RESULT IPL4asp__PT_PROVIDER::perform_ssl_handshake(int client_id) 
     IPL4_DEBUG("IPL4asp__PT_PROVIDER::perform_ssl_handshake: Accept SSL connection request");
 //    if (ssl_current_client!=NULL) log_warning("Warning: IPL4asp__PT_PROVIDER::perform_ssl_handshake: race condition while setting current client object pointer");
 //    ssl_current_client=(IPL4asp__PT_PROVIDER *)this;
-
     int attempt = 0;
     while(true)
     {
@@ -6477,7 +6614,6 @@ SSL_HANDSHAKE_RESULT IPL4asp__PT_PROVIDER::perform_ssl_handshake(int client_id) 
         return FAIL;
       }
     }
-
     IPL4_DEBUG( "IPL4asp__PT_PROVIDER::perform_ssl_handshake: Connecting...");
 //    if (ssl_current_client!=NULL) log_warning("IPL4asp__PT_PROVIDER::perform_ssl_handshake: race condition while setting current client object pointer");
 //    ssl_current_client=(IPL4asp__PT_PROVIDER *)this;
@@ -6549,11 +6685,12 @@ SSL_HANDSHAKE_RESULT IPL4asp__PT_PROVIDER::perform_ssl_handshake(int client_id) 
     if (SSL_session_reused(ssl_current_ssl)) {IPL4_DEBUG("IPL4asp__PT_PROVIDER::perform_ssl_handshake: Session was reused");}
     else { IPL4_DEBUG("IPL4asp__PT_PROVIDER::perform_ssl_handshake: Session was not reused");}
   }
-
-  if (!ssl_verify_certificates()) { // remove client
-    log_warning("IPL4asp__PT_PROVIDER::perform_ssl_handshake: Verification failed");
-    IPL4_DEBUG("IPL4asp__PT_PROVIDER::perform_ssl_handshake: leaving IPL4asp__PT_PROVIDER::perform_ssl_handshake()");
-    return FAIL;
+  if (!sockList[client_id].psk_identity && !sockList[client_id].psk_key && !psk_identity && !psk_key){
+    if (!ssl_verify_certificates()) { // remove client
+      log_warning("IPL4asp__PT_PROVIDER::perform_ssl_handshake: Verification failed");
+      IPL4_DEBUG("IPL4asp__PT_PROVIDER::perform_ssl_handshake: leaving IPL4asp__PT_PROVIDER::perform_ssl_handshake()");
+      return FAIL;
+    }
 
   }
   IPL4_DEBUG("leaving IPL4asp__PT_PROVIDER::perform_ssl_handshake() with SUCCESS");
@@ -7170,14 +7307,13 @@ bool IPL4asp__PT_PROVIDER::ssl_init_SSL_ctx(SSL_CTX* in_ssl_ctx, int conn_id) {
     SSL_CTX_set_cookie_generate_cb(in_ssl_ctx, ssl_generate_cookie_callback);
     SSL_CTX_set_cookie_verify_cb(in_ssl_ctx, ssl_verify_cookie_callback);
   }
-
+  
 #if OPENSSL_VERSION_NUMBER >= 0x1000200fL
   SSL_CTX_set_alpn_select_cb(in_ssl_ctx,ipl4_tls_alpn_cb,this);
 
 #endif
   return true;
 }
-
 
 bool IPL4asp__PT_PROVIDER::ssl_init_SSL(int connId)
 {
@@ -7198,10 +7334,14 @@ bool IPL4asp__PT_PROVIDER::ssl_init_SSL(int connId)
 
   SSL_library_init();          // initialize library
   SSL_load_error_strings();    // readable error messages
+  
+  pskIdentityIdx  = SSL_get_ex_new_index(0, (char *)"pskIdentity", NULL, NULL, NULL);
+  pskKeyIdx  = SSL_get_ex_new_index(0, (char *)"pskKey", NULL, NULL, NULL);
 
   IPL4_DEBUG("Creating SSL/TLS context...");
   // Create context with SSLv23_method() method: both server and client understanding SSLv2, SSLv3, TLSv1
   ssl_ctx = SSL_CTX_new (SSLv23_method());
+  
   if(!ssl_init_SSL_ctx(ssl_ctx, connId)) { return false; }
 
   IPL4_DEBUG("Creating DTLSv1 context...");
@@ -7210,12 +7350,98 @@ bool IPL4asp__PT_PROVIDER::ssl_init_SSL(int connId)
   if(!ssl_init_SSL_ctx(ssl_dtls_server_ctx, connId)) { return false; }
   ssl_dtls_client_ctx = SSL_CTX_new (DTLS_client_method());
   if(!ssl_init_SSL_ctx(ssl_dtls_client_ctx, connId)) { return false; }
-
+  
   ssl_initialized=true;
   IPL4_DEBUG("Init SSL successfully finished");
   return true;
 }
 
+
+void IPL4asp__PT_PROVIDER::set_psk(int connId)
+{
+  if(isConnIdValid(connId)){
+//    char *pskIdHint = get_pskIdHint(connId);
+    static char *pskIdentity = get_pskIdentity(connId);
+    char *pskKey = get_pskKey(connId);
+    if(pskKey != NULL && pskIdentity != NULL){
+#if OPENSSL_VERSION_NUMBER >= 0x1000000fL
+      if(isConnIdValid(connId) && sockList[connId].ssl_tls_type == SERVER){
+	      if(ssl_current_ssl!=NULL){
+                SSL_set_psk_server_callback(ssl_current_ssl, psk_server_cb);
+	      }
+            } else if(isConnIdValid(connId) && sockList[connId].ssl_tls_type == CLIENT){
+	      if(ssl_current_ssl!=NULL){
+                SSL_set_psk_client_callback(ssl_current_ssl, psk_client_cb);
+	      }
+      }
+#else
+    log_warning("The used OpenSSL doesn't support the PSK");
+      
+#endif
+    }
+  }
+}
+
+void IPL4asp__PT_PROVIDER::set_usePskHint(int connId,SSL_CTX *selectedSslCtx)
+{
+  if(isConnIdValid(connId)){
+    char *pskIdHint = get_pskIdHint(connId);
+    if (pskIdHint != NULL && selectedSslCtx!=NULL){
+#if OPENSSL_VERSION_NUMBER >= 0x1000000fL
+      SSL_CTX_use_psk_identity_hint(selectedSslCtx, pskIdHint);
+#else
+      log_warning("The used OpenSSL doesn't support the PSK");
+      
+#endif
+    }
+  }
+}
+
+void IPL4asp__PT_PROVIDER::set_psk_ex_data(int connId)
+{
+  char *pskIdentity = get_pskIdentity(connId);
+  char *pskKey= get_pskKey(connId);
+  if((pskIdentity != NULL) && (pskKey!=NULL) && (ssl_current_ssl!=NULL)){
+    SSL_set_ex_data(ssl_current_ssl, pskIdentityIdx, pskIdentity);
+    SSL_set_ex_data(ssl_current_ssl, pskKeyIdx, pskKey);
+  }
+}
+char *IPL4asp__PT_PROVIDER::get_pskIdentity(int connId)
+{
+  char *pskIdentityLocal = NULL;
+  if(isConnIdValid(connId) && (sockList[connId].psk_identity!=NULL)){
+   pskIdentityLocal = sockList[connId].psk_identity;     
+  }
+  else if (psk_identity!=NULL)
+  {
+    pskIdentityLocal = psk_identity;
+  }
+  return pskIdentityLocal;
+}
+char *IPL4asp__PT_PROVIDER::get_pskKey(int connId)
+{
+  char *pskKeyLocal = NULL;
+  if(isConnIdValid(connId) && (sockList[connId].psk_key!=NULL)){
+   pskKeyLocal = sockList[connId].psk_key;     
+  }
+  else if (psk_key!=NULL)
+  {
+    pskKeyLocal = psk_key;
+  }
+  return pskKeyLocal;
+}
+char *IPL4asp__PT_PROVIDER::get_pskIdHint(int connId)
+{
+  char *pskHintLocal = NULL;
+  if(isConnIdValid(connId) && (sockList[connId].psk_identity_hint!=NULL)){
+   pskHintLocal = sockList[connId].psk_identity_hint;     
+  }
+  else if (psk_key!=NULL)
+  {
+    pskHintLocal = psk_identity_hint;
+  }
+  return pskHintLocal;
+}
 
 void IPL4asp__PT_PROVIDER::ssl_log_SSL_info()
 {

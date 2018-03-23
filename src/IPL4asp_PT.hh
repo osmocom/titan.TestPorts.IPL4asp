@@ -10,7 +10,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
 //  File:               IPL4asp_PT.hh
-//  Rev:                R29B
+//  Rev:                R30A
 //  Prodnr:             CNL 113 531
 //  Contact:            http://ttcn.ericsson.se
 
@@ -228,6 +228,9 @@ typedef struct {
   char *ssl_trustedCAlist_file;    // trusted CA list file
   char *ssl_cipher_list;           // ssl_cipher list restriction to apply
   char *ssl_password;              // password to decode the private key
+  char *psk_identity;
+  char *psk_identity_hint;
+  char *psk_key;
   bool server;
   bool sctpHandshakeCompletedBeforeDtls;
   SockAddr sa_client;
@@ -420,7 +423,12 @@ protected:
 #ifdef IPL4_USE_SSL
   //increase buffer size
   bool increase_send_buffer(int fd, int &old_size, int& new_size);
-
+  void set_psk(int connId);
+  void set_usePskHint(int connId,SSL_CTX *selectedSslCtx);
+  void set_psk_ex_data(int connId);
+  char *get_pskIdentity(int connId);
+  char *get_pskIdHint(int connId);
+  char *get_pskKey(int connId);
   //SSL
   // creates SSL context and SSL_obj for TLS and DTLS
   // It will create a new SSL conenction on the top of the TCP connection.
@@ -502,6 +510,9 @@ protected:
   //virtual const char* ssl_dtls_srtp_profiles_name();
   virtual const char* ssl_cipher_list_name();
   virtual const char* ssl_verifycertificate_name();
+  virtual const char* psk_identity_name();
+  virtual const char* psk_identity_hint_name();
+  virtual const char* psk_key_name();
 #endif
 public:
   // Logging functions
@@ -890,6 +901,9 @@ public:
   char *ssl_cipher_list;           // ssl_cipher list restriction to apply
   char *ssl_password;              // password to decode the private key
   static const unsigned char * ssl_server_auth_session_id_context;
+  char *psk_identity;
+  char *psk_identity_hint;
+  char *psk_key;
 
 #ifdef IPL4_USE_SSL
 
@@ -913,7 +927,6 @@ public:
   // Callback function to perform authentication during SSL handshake. Called by OpenSSL.
   // NOTE: for further authentication, use ssl_verify_certificates().
   static int ssl_verify_callback(int preverify_status, X509_STORE_CTX * ssl_context);
-
 #endif
 };
 #ifdef EIN_R3B

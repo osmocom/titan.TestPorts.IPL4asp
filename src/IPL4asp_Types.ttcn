@@ -10,7 +10,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
 //  File:               IPL4asp_Types.ttcn
-//  Rev:                R29B
+//  Rev:                R30A
 //  Prodnr:             CNL 113 531
 //  Contact:            http://ttcn.ericsson.se
 //  Reference:
@@ -451,6 +451,12 @@ type record SSL_cert_options {
   charstring  ssl_password optional
 }
 
+type record PSK_options {
+  charstring  psk_identity optional,
+  charstring  psk_identity_hint optional,
+  charstring  psk_key optional
+}
+
 type enumerated MTU_discover {
   PMTUDISC_DONT,    //Never do Path MTU Discovery.
   PMTUDISC_WANT,    //Use per-route settings.
@@ -476,7 +482,8 @@ type union Option {
   charstring     tls_hostname,
   UDP_ENCAP_Param udp_encap,
   integer         dscp,
-  MTU_discover mtu_discover
+  MTU_discover mtu_discover,
+  PSK_options    psk_options
 }
 
 type record of Option OptionList;
