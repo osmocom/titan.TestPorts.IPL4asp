@@ -1,6 +1,8 @@
-# Copyright 2000-2008 Test Competence Center, Ericsson R & D, Hungary
-# For trouble reporting use the tool MTTSMS.
-# For TR writers guide please visit the web page: http://ttcn.ericsson.se
+# Copyright (c) 2007-2018  Ericsson AB
+# All rights reserved. This program and the accompanying materials
+# are made available under the terms of the Eclipse Public License v1.0
+# which accompanies this distribution, and is available at
+# http://www.eclipse.org/legal/epl-v10.html
 
 # The following make commands are available:
 # - make, make all     Builds the executable test suite.

@@ -1,16 +1,15 @@
 ///////////////////////////////////////////////////////////////////////////////
-//                                                                           //
-// Copyright Test Competence Center (TCC) ETH 2018                           //
-//                                                                           //
-// The copyright to the computer  program(s) herein  is the property of TCC. //
-// The program(s) may be used and/or copied only with the written permission //
-// of TCC or in accordance with  the terms and conditions  stipulated in the //
-// agreement/contract under which the program(s) has been supplied.          //
-//                                                                           //
+//
+// Copyright (c) 2000-2018 Ericsson Telecom AB
+//
+// All rights reserved. This program and the accompanying materials
+// are made available under the terms of the Eclipse Public License v1.0
+// which accompanies this distribution, and is available at
+// http://www.eclipse.org/legal/epl-v10.html
 ///////////////////////////////////////////////////////////////////////////////
 //
 //  File:               IPL4asp_PT.cc
-//  Rev:                R30A
+//  Rev:                R30C
 //  Prodnr:             CNL 113 531
 //  Contact:            http://ttcn.ericsson.se
 //  Reference:
@@ -4129,8 +4128,8 @@ void IPL4asp__PT_PROVIDER::setResult(Socket__API__Definitions::Result& result, P
 
 void IPL4asp__PT_PROVIDER::starttls(const ConnectionId& connId, const BOOLEAN& server_side, Socket__API__Definitions::Result& result){
 
-  if(TTCN_Logger::log_this_event(TTCN_PORTEVENT)){
-    TTCN_Logger::begin_event(TTCN_PORTEVENT);
+  if(TTCN_Logger::log_this_event(TTCN_Logger::PORTEVENT_MMSEND)){
+    TTCN_Logger::begin_event(TTCN_Logger::PORTEVENT_MMSEND);
     TTCN_Logger::log_event("starttls connId: %d: server_side: %s", (int)connId, server_side ? "yes" : "no");
     TTCN_Logger::end_event();
   }
@@ -4237,8 +4236,8 @@ void IPL4asp__PT_PROVIDER::starttls(const ConnectionId& connId, const BOOLEAN& s
 
 void IPL4asp__PT_PROVIDER::stoptls(const ConnectionId& connId, Socket__API__Definitions::Result& result){
 
-  if(TTCN_Logger::log_this_event(TTCN_PORTEVENT)){
-    TTCN_Logger::begin_event(TTCN_PORTEVENT);
+  if(TTCN_Logger::log_this_event(TTCN_Logger::PORTEVENT_MMSEND)){
+    TTCN_Logger::begin_event(TTCN_Logger::PORTEVENT_MMSEND);
     TTCN_Logger::log_event("stoptls connId: %d", (int)connId);
     TTCN_Logger::end_event();
   }
@@ -4658,8 +4657,8 @@ Result f__IPL4__PROVIDER__listen(IPL4asp__PT_PROVIDER& portRef, const HostName& 
   SSL_TLS_Type ssl_tls_type = NONE;
   ProtoTuple my_proto = proto;
 
-  if(TTCN_Logger::log_this_event(TTCN_PORTEVENT)){
-    TTCN_Logger::begin_event(TTCN_PORTEVENT);
+  if(TTCN_Logger::log_this_event(TTCN_Logger::PORTEVENT_MMSEND)){
+    TTCN_Logger::begin_event(TTCN_Logger::PORTEVENT_MMSEND);
     TTCN_Logger::log_event("entering f__IPL4__PROVIDER__listen: %s:%d / %s",
         (const char *)locName, (int)locPort,
         proto.get_selection() == ProtoTuple::ALT_udp ? "UDP" :
@@ -4965,8 +4964,8 @@ Result f__IPL4__PROVIDER__connect(IPL4asp__PT_PROVIDER& portRef, const HostName&
   int hp = 0;
   Result result(OMIT_VALUE, OMIT_VALUE, OMIT_VALUE,OMIT_VALUE);
 
-  if(TTCN_Logger::log_this_event(TTCN_PORTEVENT)){
-    TTCN_Logger::begin_event(TTCN_PORTEVENT);
+  if(TTCN_Logger::log_this_event(TTCN_Logger::PORTEVENT_MMSEND)){
+    TTCN_Logger::begin_event(TTCN_Logger::PORTEVENT_MMSEND);
     TTCN_Logger::log_event("entering f__IPL4__PROVIDER__connect: %s:%d -> %s:%d / %s",
         (const char *)locName, (int)locPort,
         (const char *)remName, (int)remPort,
@@ -5865,8 +5864,8 @@ Result f__IPL4__PROVIDER__StartTLS(
     const ConnectionId& connId,
     const BOOLEAN& server__side)
 {
-  if(TTCN_Logger::log_this_event(TTCN_PORTEVENT)){
-    TTCN_Logger::begin_event(TTCN_PORTEVENT);
+  if(TTCN_Logger::log_this_event(TTCN_Logger::PORTEVENT_MMSEND)){
+    TTCN_Logger::begin_event(TTCN_Logger::PORTEVENT_MMSEND);
     TTCN_Logger::log_event("%s: f_IPL4_StartTLS: connId: %d, %s side", portRef.get_name(),(int)connId,server__side?"server":"client");
     TTCN_Logger::end_event();
   }
@@ -5879,8 +5878,8 @@ Result f__IPL4__PROVIDER__StopTLS(
     IPL4asp__PT_PROVIDER& portRef,
     const ConnectionId& connId)
 {
-  if(TTCN_Logger::log_this_event(TTCN_PORTEVENT)){
-    TTCN_Logger::begin_event(TTCN_PORTEVENT);
+  if(TTCN_Logger::log_this_event(TTCN_Logger::PORTEVENT_MMSEND)){
+    TTCN_Logger::begin_event(TTCN_Logger::PORTEVENT_MMSEND);
     TTCN_Logger::log_event("%s: f_IPL4_StopTLS: connId: %d", portRef.get_name(),(int)connId);
     TTCN_Logger::end_event();
   }
@@ -5942,19 +5941,29 @@ Result f__IPL4__PROVIDER__ConnId__release(
     const IPL4asp__Types::ConnectionId& connId)
 {
   Result result(OMIT_VALUE, OMIT_VALUE, OMIT_VALUE, OMIT_VALUE);
-  if(TTCN_Logger::log_this_event(TTCN_PORTEVENT)){
-    TTCN_Logger::begin_event(TTCN_PORTEVENT);
+  if(TTCN_Logger::log_this_event(TTCN_Logger::PORTEVENT_MMSEND)){
+    TTCN_Logger::begin_event(TTCN_Logger::PORTEVENT_MMSEND);
     TTCN_Logger::log_event("%s: f__IPL4__ConnId__release: ", portRef.get_name());
     TTCN_Logger::log_event(" connId ");
     connId.log();
     TTCN_Logger::end_event();
   }
+
   if(portRef.isConnIdReleaseWait(connId)){
     portRef.ConnFree(connId);
-    return Result(OMIT_VALUE, OMIT_VALUE, OMIT_VALUE, OMIT_VALUE);
+  } else {
+    result=Result(PortError::ERROR__INVALID__INPUT__PARAMETER, OMIT_VALUE, -1, "The f_IPL4_ConnId_release called in wrong state");
   }
 
-  return Result(PortError::ERROR__INVALID__INPUT__PARAMETER, OMIT_VALUE, -1, "The f_IPL4_ConnId_release called in wrong state");
+  if(TTCN_Logger::log_this_event(TTCN_Logger::PORTEVENT_MMRECV)){
+    TTCN_Logger::begin_event(TTCN_Logger::PORTEVENT_MMRECV);
+    TTCN_Logger::log_event("%s: f_IPL4_ConnId_release result: ", portRef.get_name());
+    result.log();
+    TTCN_Logger::end_event();
+  }
+  
+  return result;
+
 }
 
 Result f__IPL4__listen(
@@ -5964,7 +5973,16 @@ Result f__IPL4__listen(
     const ProtoTuple& proto,
     const OptionList& options)
 {
-  return f__IPL4__PROVIDER__listen(portRef, locName, locPort, proto, options);
+  Result result=f__IPL4__PROVIDER__listen(portRef, locName, locPort, proto, options);
+
+  if(TTCN_Logger::log_this_event(TTCN_Logger::PORTEVENT_MMRECV)){
+    TTCN_Logger::begin_event(TTCN_Logger::PORTEVENT_MMRECV);
+    TTCN_Logger::log_event("%s: f_IPL4_listen result: ", portRef.get_name());
+    result.log();
+    TTCN_Logger::end_event();
+  }
+  
+  return result;
 } // f__IPL4__listen
 
 
@@ -5979,8 +5997,18 @@ Result f__IPL4__connect(
     const ProtoTuple& proto,
     const OptionList& options)
 {
-  return f__IPL4__PROVIDER__connect(portRef, remName, remPort,
+
+  Result result=f__IPL4__PROVIDER__connect(portRef, remName, remPort,
       locName, locPort, connId, proto, options);
+
+  if(TTCN_Logger::log_this_event(TTCN_Logger::PORTEVENT_MMRECV)){
+    TTCN_Logger::begin_event(TTCN_Logger::PORTEVENT_MMRECV);
+    TTCN_Logger::log_event("%s: f_IPL4_connect result: ", portRef.get_name());
+    result.log();
+    TTCN_Logger::end_event();
+  }
+  
+  return result;
 } // f__IPL4__connect
 
 
@@ -6008,8 +6036,8 @@ Result f__IPL4__close(
     const ConnectionId& connId,
     const ProtoTuple& proto)
 {
-  if(TTCN_Logger::log_this_event(TTCN_PORTEVENT)){
-    TTCN_Logger::begin_event(TTCN_PORTEVENT);
+  if(TTCN_Logger::log_this_event(TTCN_Logger::PORTEVENT_MMSEND)){
+    TTCN_Logger::begin_event(TTCN_Logger::PORTEVENT_MMSEND);
     TTCN_Logger::log_event("%s: f__IPL4__close: ", portRef.get_name());
     TTCN_Logger::log_event(" proto ");
     proto.log();
@@ -6017,7 +6045,17 @@ Result f__IPL4__close(
     connId.log();
     TTCN_Logger::end_event();
   }
-  return f__IPL4__PROVIDER__close(portRef, connId, proto);
+
+  Result result=f__IPL4__PROVIDER__close(portRef, connId, proto);
+
+  if(TTCN_Logger::log_this_event(TTCN_Logger::PORTEVENT_MMRECV)){
+    TTCN_Logger::begin_event(TTCN_Logger::PORTEVENT_MMRECV);
+    TTCN_Logger::log_event("%s: f__IPL4__close result: ", portRef.get_name());
+    result.log();
+    TTCN_Logger::end_event();
+  }
+  
+  return result;
 } // f__IPL4__close
 
 
@@ -6093,14 +6131,22 @@ Result f__IPL4__send(
     const ASP__Send& asp,
     INTEGER& sent__octets)
 {
-  if(TTCN_Logger::log_this_event(TTCN_PORTEVENT)){
-    TTCN_Logger::begin_event(TTCN_PORTEVENT);
+  if(TTCN_Logger::log_this_event(TTCN_Logger::PORTEVENT_MMSEND)){
+    TTCN_Logger::begin_event(TTCN_Logger::PORTEVENT_MMSEND);
     TTCN_Logger::log_event("%s: f_IPL4_send: ", portRef.get_name());
     asp.log();
     TTCN_Logger::end_event();
   }
   Result result(OMIT_VALUE, OMIT_VALUE, OMIT_VALUE, OMIT_VALUE);
   sent__octets=portRef.outgoing_send_core(asp,result);
+
+  if(TTCN_Logger::log_this_event(TTCN_Logger::PORTEVENT_MMRECV)){
+    TTCN_Logger::begin_event(TTCN_Logger::PORTEVENT_MMRECV);
+    TTCN_Logger::log_event("%s: f_IPL4_send result: ", portRef.get_name());
+    result.log();
+    TTCN_Logger::end_event();
+  }
+  
   return result;
 }
 
@@ -6109,14 +6155,22 @@ Result f__IPL4__sendto(
     const ASP__SendTo& asp,
     INTEGER& sent__octets)
 {
-  if(TTCN_Logger::log_this_event(TTCN_PORTEVENT)){
-    TTCN_Logger::begin_event(TTCN_PORTEVENT);
+  if(TTCN_Logger::log_this_event(TTCN_Logger::PORTEVENT_MMSEND)){
+    TTCN_Logger::begin_event(TTCN_Logger::PORTEVENT_MMSEND);
     TTCN_Logger::log_event("%s: f_IPL4_sendto: ", portRef.get_name());
     asp.log();
     TTCN_Logger::end_event();
   }
   Result result(OMIT_VALUE, OMIT_VALUE, OMIT_VALUE, OMIT_VALUE);
   sent__octets=portRef.outgoing_send_core(asp,result);
+
+  if(TTCN_Logger::log_this_event(TTCN_Logger::PORTEVENT_MMRECV)){
+    TTCN_Logger::begin_event(TTCN_Logger::PORTEVENT_MMRECV);
+    TTCN_Logger::log_event("%s: f_IPL4_sendto result: ", portRef.get_name());
+    result.log();
+    TTCN_Logger::end_event();
+  }
+  
   return result;
 }
 
@@ -6125,28 +6179,48 @@ Result f__IPL4__StartTLS(
     const ConnectionId& connId,
     const BOOLEAN& server__side)
 {
-  if(TTCN_Logger::log_this_event(TTCN_PORTEVENT)){
-    TTCN_Logger::begin_event(TTCN_PORTEVENT);
+  if(TTCN_Logger::log_this_event(TTCN_Logger::PORTEVENT_MMSEND)){
+    TTCN_Logger::begin_event(TTCN_Logger::PORTEVENT_MMSEND);
     TTCN_Logger::log_event("%s: f__IPL4__StartTLS: ", portRef.get_name());
     connId.log();
     TTCN_Logger::log_event(" server_side: ");
     server__side.log();
     TTCN_Logger::end_event();
   }
-  return f__IPL4__PROVIDER__StartTLS(portRef,connId,server__side);
+
+  Result result=f__IPL4__PROVIDER__StartTLS(portRef,connId,server__side);
+
+  if(TTCN_Logger::log_this_event(TTCN_Logger::PORTEVENT_MMRECV)){
+    TTCN_Logger::begin_event(TTCN_Logger::PORTEVENT_MMRECV);
+    TTCN_Logger::log_event("%s: f__IPL4__StartTLS result: ", portRef.get_name());
+    result.log();
+    TTCN_Logger::end_event();
+  }
+  
+  return result;
 }
 
 Result f__IPL4__StopTLS(
     IPL4asp__PT& portRef,
     const ConnectionId& connId)
 {
-  if(TTCN_Logger::log_this_event(TTCN_PORTEVENT)){
-    TTCN_Logger::begin_event(TTCN_PORTEVENT);
+  if(TTCN_Logger::log_this_event(TTCN_Logger::PORTEVENT_MMSEND)){
+    TTCN_Logger::begin_event(TTCN_Logger::PORTEVENT_MMSEND);
     TTCN_Logger::log_event("%s: f__IPL4__StopTLS: ", portRef.get_name());
     connId.log();
     TTCN_Logger::end_event();
   }
-  return f__IPL4__PROVIDER__StopTLS(portRef,connId);
+
+  Result result=f__IPL4__PROVIDER__StopTLS(portRef,connId);
+
+  if(TTCN_Logger::log_this_event(TTCN_Logger::PORTEVENT_MMRECV)){
+    TTCN_Logger::begin_event(TTCN_Logger::PORTEVENT_MMRECV);
+    TTCN_Logger::log_event("%s: f__IPL4__StopTLS result: ", portRef.get_name());
+    result.log();
+    TTCN_Logger::end_event();
+  }
+  
+  return result;
 }
 
 OCTETSTRING f__IPL4__exportTlsKey(
@@ -6802,6 +6876,7 @@ int IPL4asp__PT_PROVIDER::receive_ssl_message_on_fd(int client_id, int* error_ms
       *error_msg=ssl_getresult(messageLength);
       switch (*error_msg) {
       case SSL_ERROR_ZERO_RETURN:
+        if(sockList[client_id].type==IPL4asp_UDP){return -2;} // Just ignore the zero length UDP packet
         IPL4_DEBUG("IPL4asp__PT_PROVIDER::receive_message_on_fd: SSL connection was interrupted by the other side");
         SSL_set_quiet_shutdown(ssl_current_ssl, 1);
         IPL4_DEBUG("SSL_ERROR_ZERO_RETURN is received, setting SSL SHUTDOWN mode to QUIET");
