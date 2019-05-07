@@ -9,9 +9,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
 //  File:               IPL4asp_PortType.ttcn
-//  Rev:                R30C
-//  Prodnr:             CNL 113 531
-//  Contact:            http://ttcn.ericsson.se
 //  Reference:
 
 module IPL4asp_PortType {

@@ -9,10 +9,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
 //  File:               IPL4asp_Functions.ttcn
-//  Rev:                R30C
-//  Prodnr:             CNL 113 531
-//  Updated:            2010-06-09
-//  Contact:            http://ttcn.ericsson.se
 //  Reference:
 
 module IPL4asp_Functions {

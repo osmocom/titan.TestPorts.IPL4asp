@@ -1,0 +1,18 @@
+= IPL4asp Test Port for TTCN-3 Toolset with TITAN, Change log
+:author: Gábor Szalai
+:toc:
+
+= Changes
+
+== R30E
+
+Message dissector function update:
+
+If the callback function detects that the it will be impossible to determine the length of the message, even receiving more octests, should return `_"-2"_`. In this case the connection will be closed and the length calculation error will be reported.
+
+If the callback function returns `_"0"_` run time error will be raised to avoid deadlock.
+
+== R30F
+
+The name of the test port parameters: TLSv1.1, TLSv1.2, DTLSv1.2 changed to TLSv1_1, TLSv1_2, DTLSv1_2
+

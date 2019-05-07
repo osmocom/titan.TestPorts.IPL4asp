@@ -9,9 +9,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
 //  File:               IPL4asp_PT.cc
-//  Rev:                R30C
-//  Prodnr:             CNL 113 531
-//  Contact:            http://ttcn.ericsson.se
 //  Reference:
 //  DTLS references: http://www.net-snmp.org/wiki/index.php/DTLS_Implementation_Notes
 //                   http://sctp.fh-muenster.de & http://sctp.fh-muenster.de/DTLS.pdf
@@ -54,8 +51,10 @@
 #define SSL_CHARBUF_LENGTH 256
 // number of bytes to read from the random devices
 #define SSL_PRNG_LENGTH 1024
-#if defined(BIO_CTRL_DGRAM_SCTP_GET_RCVINFO) && defined(BIO_CTRL_DGRAM_SCTP_SET_SNDINFO)
-#define OPENSSL_SCTP_SUPPORT
+#ifndef OPENSSL_NO_SCTP
+  #if defined(BIO_CTRL_DGRAM_SCTP_GET_RCVINFO) && defined(BIO_CTRL_DGRAM_SCTP_SET_SNDINFO)
+    #define OPENSSL_SCTP_SUPPORT
+  #endif
 #endif
 
 // is DTLS_mehod available?
@@ -360,6 +359,7 @@ IPL4asp__PT_PROVIDER::IPL4asp__PT_PROVIDER(const char *par_port_name)
 : PORT(par_port_name) {
   IPL4_DEBUG("IPL4asp__PT_PROVIDER::IPL4asp__PT_PROVIDER: enter");
   debugAllowed = false;
+  alreadyComplainedAboutMsgLen = false;
   mapped = false;
   sockListSize = SOCK_LIST_SIZE_MIN;
   defaultLocHost = memptystr();
@@ -763,13 +763,13 @@ void IPL4asp__PT_PROVIDER::set_parameter(const char *parameter_name,
     else if (!strcasecmp(parameter_value,"NO"))
       globalConnOpts.ssl_supp.TLSv1 = GlobalConnOpts::NO;
   }
-  else if (!strcmp(parameter_name, "TLSv1.1")){
+  else if (!strcmp(parameter_name, "TLSv1_1")){
     if (!strcasecmp(parameter_value,"YES"))
       globalConnOpts.ssl_supp.TLSv1_1 = GlobalConnOpts::YES;
     else if (!strcasecmp(parameter_value,"NO"))
       globalConnOpts.ssl_supp.TLSv1_1 = GlobalConnOpts::NO;
   }
-  else if (!strcmp(parameter_name, "TLSv1.2")){
+  else if (!strcmp(parameter_name, "TLSv1_2")){
     if (!strcasecmp(parameter_value,"YES"))
       globalConnOpts.ssl_supp.TLSv1_2 = GlobalConnOpts::YES;
     else if (!strcasecmp(parameter_value,"NO"))
@@ -781,7 +781,7 @@ void IPL4asp__PT_PROVIDER::set_parameter(const char *parameter_name,
     else if (!strcasecmp(parameter_value,"NO"))
       globalConnOpts.ssl_supp.DTLSv1 = GlobalConnOpts::NO;
   }
-  else if (!strcmp(parameter_name, "DTLSv1.2")){
+  else if (!strcmp(parameter_name, "DTLSv1_2")){
     if (!strcasecmp(parameter_value,"YES"))
       globalConnOpts.ssl_supp.DTLSv1_2 = GlobalConnOpts::YES;
     else if (!strcasecmp(parameter_value,"NO"))
@@ -1336,19 +1336,54 @@ void IPL4asp__PT_PROVIDER::Handle_Fd_Event_Readable(int fd)
             }
           } else {
             sockList[connId].msgLen = (*sockList[connId].buf)->get_len();
-          }
-          msgFound = (sockList[connId].msgLen != -1) && (sockList[connId].msgLen <= (int)sockList[connId].buf[0]->get_len());
-          if (msgFound) {
-            IPL4_DEBUG("IPL4asp__PT_PROVIDER::Handle_Fd_Event_Readable: message length: (%d/%d bytes)\n",
-                sockList[connId].msgLen, (int)sockList[connId].buf[0]->get_len());
-            asp.msg() = OCTETSTRING(sockList[connId].msgLen, sockList[connId].buf[0]->get_data());
-            sockList[connId].buf[0]->set_pos((size_t)sockList[connId].msgLen);
-            sockList[connId].buf[0]->cut();
-            if(lazy_conn_id_level && sockListCnt==1 && lonely_conn_id!=-1){
-              asp.connId()=-1;
+            if(!alreadyComplainedAboutMsgLen && (sockList[connId].type == IPL4asp_TCP)) {
+              TTCN_warning("There is no GetMsgLen function registered for connId: %d. The messages will not be dissected on this connection! This warning is logged only once per testport.", connId);
+              alreadyComplainedAboutMsgLen = true;
             }
-            incoming_message(asp);
-            sockList[connId].msgLen = -1;
+          }
+
+          if(sockList[connId].msgLen == 0) {  // The GetMsgLen function should not return 0.
+                                              // If it returns 0, then we log what we can, and stop the component.
+            OCTETSTRING oct;
+            (*sockList[connId].buf)->get_string(oct);
+            TTCN_Logger::begin_event(TTCN_ERROR);
+            TTCN_Logger::log_event("%s: MsgLen calculation function returned 0 on connection %s:%u <-> %s:%u. Received data: ", get_name(),
+              (const char*)*sockList[connId].localaddr, (unsigned int)sockList[connId].localport->get_long_long_val(),
+              (const char*)*sockList[connId].remoteaddr, (unsigned int)sockList[connId].remoteport->get_long_long_val());
+            oct.log();
+            TTCN_Logger::end_event();
+            errno = EDEADLK;
+            TTCN_error("MsgLen returned 0");
+          } else if (sockList[connId].msgLen == -2){ // The GetMsgLen function returned -2 means
+                                                     // it is impossible to determine the length of the message -> report & close
+            OCTETSTRING oct;
+            (*sockList[connId].buf)->get_string(oct);
+            TTCN_Logger::begin_event(TTCN_WARNING);
+            TTCN_Logger::log_event("%s: MsgLen calculation function reported length calculation error on connection %s:%u <-> %s:%u. Received data: ", get_name(),
+              (const char*)*sockList[connId].localaddr, (unsigned int)sockList[connId].localport->get_long_long_val(),
+              (const char*)*sockList[connId].remoteaddr, (unsigned int)sockList[connId].remoteport->get_long_long_val());
+            oct.log();
+            TTCN_Logger::end_event();
+            errno = EDEADLK;
+            sendError(PortError::ERROR__LENGTH, connId, errno);
+            
+            // close the connection
+            len = 0;  // leave the loop and close the connection in the code below
+            break;
+          } else {
+            msgFound = (sockList[connId].msgLen != -1) && (sockList[connId].msgLen <= (int)sockList[connId].buf[0]->get_len());
+            if (msgFound) {
+              IPL4_DEBUG("IPL4asp__PT_PROVIDER::Handle_Fd_Event_Readable: message length: (%d/%d bytes)\n",
+                  sockList[connId].msgLen, (int)sockList[connId].buf[0]->get_len());
+              asp.msg() = OCTETSTRING(sockList[connId].msgLen, sockList[connId].buf[0]->get_data());
+              sockList[connId].buf[0]->set_pos((size_t)sockList[connId].msgLen);
+              sockList[connId].buf[0]->cut();
+              if(lazy_conn_id_level && sockListCnt==1 && lonely_conn_id!=-1){
+                asp.connId()=-1;
+              }
+              incoming_message(asp);
+              sockList[connId].msgLen = -1;
+            }
           }
         } while (msgFound && sockList[connId].buf[0]->get_len() != 0);
         if (sockList[connId].buf[0]->get_len() != 0)
@@ -3559,7 +3594,7 @@ int IPL4asp__PT_PROVIDER::getOption(const Option& option,
 
   int optval;
   socklen_t optlen = sizeof(optval);
-  int length;
+  int length = -1;
 
   //MTU Discovery
   if (sock != -1 && iMtuDiscover != -1) {
@@ -3569,8 +3604,6 @@ int IPL4asp__PT_PROVIDER::getOption(const Option& option,
     IPL4__IPAddressType type = GetSocketAddressType(sock);
 
     if (type != IPL4__IPAddressType::ErrorReadingAddress) {
-      int length = -1;
-
       if (type == IPL4__IPAddressType::IPv4) {
         if (mtu == MTU__discover::MTU) {
           length = getsockopt(sock, IPPROTO_IP, IP_MTU, &optval, &optlen);
@@ -4168,16 +4201,35 @@ void IPL4asp__PT_PROVIDER::starttls(const ConnectionId& connId, const BOOLEAN& s
     } else {
       IPL4_DEBUG("IPL4asp__PT_PROVIDER::starttls: set server side BIO, connId: %d", (int)connId);
       if(sockList[connId].type == IPL4asp_UDP) sockList[connId].bio = BIO_new_dgram(sockList[connId].sock, BIO_NOCLOSE);
-#ifdef OPENSSL_SCTP_SUPPORT
-      if(sockList[connId].type == IPL4asp_SCTP_LISTEN || sockList[connId].type == IPL4asp_SCTP) sockList[connId].bio = BIO_new_dgram_sctp(sockList[connId].sock, BIO_NOCLOSE);
+
+      if(sockList[connId].type == IPL4asp_SCTP_LISTEN || sockList[connId].type == IPL4asp_SCTP) {
+#ifdef OPENSSL_NO_SCTP
+        TTCN_warning("The OpenSSL development library was compiled with disabled SCTP support. The 'OPENSSL_NO_SCTP' macro is present in the headers. Please install an OpenSSL development library with enabled SCTP support.");
+        setResult(result,PortError::ERROR__SOCKET,connId,0);
+        return;
 #endif
+#ifndef BIO_CTRL_DGRAM_SCTP_GET_RCVINFO
+        TTCN_warning("The 'BIO_CTRL_DGRAM_SCTP_GET_RCVINFO' macro is not present in the OpenSSL headers. Please install a newer OpenSSL development library.");
+        setResult(result,PortError::ERROR__SOCKET,connId,0);
+        return;
+#endif
+#ifndef BIO_CTRL_DGRAM_SCTP_SET_SNDINFO
+        TTCN_warning("The 'BIO_CTRL_DGRAM_SCTP_SET_SNDINFO' macro is not present in the OpenSSL headers. Please install a newer OpenSSL development library.");
+        setResult(result,PortError::ERROR__SOCKET,connId,0);
+        return;
+#endif
+
+#ifdef OPENSSL_SCTP_SUPPORT
+        sockList[connId].bio = BIO_new_dgram_sctp(sockList[connId].sock, BIO_NOCLOSE);
+#endif
+      }
+
       SSL_set_bio(sockList[connId].sslObj, sockList[connId].bio, sockList[connId].bio);
       /* Enable cookie exchange */
       if(!(sockList[connId].type == IPL4asp_SCTP_LISTEN || sockList[connId].type == IPL4asp_SCTP)) SSL_set_options(sockList[connId].sslObj, SSL_OP_COOKIE_EXCHANGE);
       // in DTLS server case, wait the client to ping us, and call DTLSv1_listen in the handleevent_readable
       return;
     }
-
   }
 
   // if we are DTLS client, then add BIO, then go further with the perform handshake
@@ -5521,7 +5573,6 @@ Result f__IPL4__PROVIDER__connect(IPL4asp__PT_PROVIDER& portRef, const HostName&
   case ProtoTuple::ALT_sctp: {
 #ifdef USE_SCTP
     IPL4_PORTREF_DEBUG(portRef, "f__IPL4__PROVIDER__connect: sock: %d", sock);
-
 #ifdef IPL4_USE_SSL
 #ifdef OPENSSL_SCTP_SUPPORT
     // Initialize client BIO here
@@ -5529,6 +5580,11 @@ Result f__IPL4__PROVIDER__connect(IPL4asp__PT_PROVIDER& portRef, const HostName&
     // This means that if a simple SCTP connect is called first and then later on the f_IPL4_StartTLS is used,
     // the BIO should be initialized here, otherwise segmentation fault is triggered in OpenSSL.
     BIO *bio_ptr = BIO_new_dgram_sctp(sock, BIO_NOCLOSE);
+    if(!bio_ptr) {
+      TTCN_warning("f__IPL4__PROVIDER__connect: failed to create BIO for SCTP. Please check that 'sysctl net.sctp.auth_enable' returns 1, otherwise set it!");
+      close(sock);
+      RETURN_ERROR(ERROR__SOCKET);
+    }
 #endif
 #endif
 
@@ -5584,7 +5640,7 @@ Result f__IPL4__PROVIDER__connect(IPL4asp__PT_PROVIDER& portRef, const HostName&
         portRef.setResult(result,PortError::ERROR__SOCKET,l_connId,0);
       }
       else {
-        IPL4_PORTREF_DEBUG(portRef, "IPL4asp__PT_PROVIDER::connect: set client side BIO, connId: %d", (int)l_connId);
+        IPL4_PORTREF_DEBUG(portRef, "IPL4asp__PT_PROVIDER::connect: set client side BIO, connId: %d, bio: %p", (int)l_connId, bio_ptr);
         portRef.sockList[l_connId].bio = bio_ptr;
         SSL_set_bio(portRef.sockList[l_connId].sslObj, portRef.sockList[l_connId].bio, portRef.sockList[l_connId].bio);
       }

@@ -9,9 +9,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
 //  File:               IPL4asp_PT.hh
-//  Rev:                R30C
-//  Prodnr:             CNL 113 531
-//  Contact:            http://ttcn.ericsson.se
 
 
 #ifndef IPL4asp__PT_HH
@@ -777,6 +774,7 @@ public:
 
   bool mapped;
   bool debugAllowed;
+  bool alreadyComplainedAboutMsgLen;
   Socket__API__Definitions::ConnectionId dontCloseConnectionId;
   SockAddr closingPeer;
   socklen_t closingPeerLen;

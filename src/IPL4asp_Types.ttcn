@@ -10,9 +10,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
 //  File:               IPL4asp_Types.ttcn
-//  Rev:                R30C
-//  Prodnr:             CNL 113 531
-//  Contact:            http://ttcn.ericsson.se
 //  Reference:
 
 module IPL4asp_Types {
@@ -555,6 +552,7 @@ const PortError IPL4_ERROR_HOSTNAME := ERROR_HOSTNAME;
 const PortError IPL4_ERROR_INVALID_CONNECTION := ERROR_INVALID_CONNECTION;
 const PortError IPL4_ERROR_TEMPORARILY_UNAVAILABLE := ERROR_TEMPORARILY_UNAVAILABLE;
 const PortError IPL4_ERROR_AVAILABLE := ERROR_AVAILABLE;
+const PortError IPL4_ERROR_LENGTH := ERROR_LENGTH;
 
 /* Type definition for the user defined function to determine the message
 length (boundary) in a TCP data stream.

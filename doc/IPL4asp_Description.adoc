@@ -1,16 +1,8 @@
----
-Author: Gábor Szalai
-Version: 1551-CNL 113 531, Rev. AD
-Date: 2018-05-04
-
----
 = IPL4asp Test Port for TTCN-3 Toolset with TITAN, Description
 :author: Gábor Szalai
-:revnumber: 1551-CNL 113 531, Rev. AD
-:revdate: 2018-05-04
 :toc:
 
-= Functionality
+== Functionality
 
 The IPL4asp is a general purpose, session independent test port providing access to several transport layers over the Internet Protocols in an extensible manner. The most important features are the support of multiple IP addresses of both IPv4 and IPv6 and that the user of the test port can extend the base functionalities with session specific ones using either TTCN or external C++ function.
 
@@ -18,15 +10,15 @@ The IPL4asp test port has been demanded by projects to produce very high load, t
 
 The IPL4asp test port will replace the earlier UDP, TCP with SSL support and SCTP test ports, providing backward compatibility as far as possible, in order to reduce maintenance efforts.
 
-== Supported Internet Protocol Version
+=== Supported Internet Protocol Version
 
 The IPL4asp test port shall support both currently used Internet Protocol versions, i.e. IPv4 and IPv6. The version of the Internet Protocol shall be hidden at the level of the test port API (see <<Use_of_DNS_Names_and_IP_Addresses, Use of DNS Names and IP Addresses>>.
 
-== Several Transport Protocols
+=== Several Transport Protocols
 
 The IPL4asp test port shall support the UDP, TCP, TCP with SSL and SCTP transport layer (L4) protocols. The test port shall be designed in an extensible manner that other transport protocols can be added without modifying the framework and the test port API.
 
-== Backward Incompatibilities
+=== Backward Incompatibilities
 
 The following backward incompatibilities exist (R1A -> R2A):
 
@@ -34,7 +26,7 @@ The following backward incompatibilities exist (R1A -> R2A):
 * The expected behavior of the callback function, registered with `f_IPL4_setGetMsgLen`, has been slightly modified - If the callback function returns a length bigger than the message part in the octetstring, then this value is stored and used later without calling the callback function again for the given message.
 * The definition of Connection ID is modified - It is a test port component level unique identifier of the connection. It is not guaranteed to be a file descriptor. The connection ID identifies also the protocol.
 
-== Platform Dependencies and Limitations
+=== Platform Dependencies and Limitations
 
 The following table indicates which functionalities are available on different platforms:
 
@@ -59,7 +51,7 @@ In order to take advantage of the SCTP support in IPL4 test port the following p
 On Ubuntu 8.10 one of the standard API calls used in the test port may block the execution for several seconds. This is a known issue with Ubuntu which may be resolved by applying the latest updates to the OS. To overcome this problem a workaround has been implemented. If specific IP addresses are used in a valid dot notation form instead of domain names, no DNS name resolution is needed, and no calls made to the faulty function.
 
 [[system_requirements]]
-== System Requirements
+=== System Requirements
 
 In order to operate the IPL4asp test port the following system requirements must be satisfied:
 
@@ -86,39 +78,41 @@ lksctp-tools-devel-1.0.1-2.i586.rpm
 * Several functions rely on the OpenSSL library so the used OpenSSL version should support the required functionality. Please consult the OpenSSL manual for the exact versions.
 ** The available chippers and SSL/TSL/DTLS versions depends on the OpenSSL versions. Check the OpenSSL manual
 ** For DTLS support OpenSSL 1.0.1 or later version must be installed.
-** For DTLS over SCTP the OpenSSL 1.0.1q or later versions is required and the Linux kernel version >= 3.13.0.
+** For DTLS over SCTP the OpenSSL 1.0.1q or later versions is required and the Linux kernel version >= 3.13.0. +
+The OpenSSL library must be compiled with SCTP support (which is disabled by default). +
+The net.sctp.auth_enable kernel setting must be set to 1.
 ** For PSK support OpenSSL 1.0.2 or later version is required
 
-= Feature List
+== Feature List
 
 The features enumerated below have been implemented in the test port.
 
-== Transport Protocol Extensibility
+=== Transport Protocol Extensibility
 
 The test port is designed in an extensible manner that other transport protocols can be added without modifying the framework and the test port API.
 
-== Multiple IP Addresses
+=== Multiple IP Addresses
 
 The IPL4asp test port is handling multiple IPv4 and/or IPv6 addresses, be it available either on virtual or physical interfaces.
 
 The test port provides run-time configuration support to set up virtual interfaces on start and shutting down those interfaces on stop. The physical interface is handled using `TCCUsefulFunctions` <<_4, [4]>>.
 
 [[Use_of_DNS_Names_and_IP_Addresses]]
-== Use of DNS Names and IP Addresses
+=== Use of DNS Names and IP Addresses
 
 The IPL4asp test port supports IP addresses in the dotted notation format by default, but DNS names can be used, too.
 
-== Connection Handling at the User Level
+=== Connection Handling at the User Level
 
 A connection is identified by a connection tuple in connection creation (listen or connect). Later the connection is identified by the connection ID: during message sending-receiving, closing, connection property modification and in error notifications. See <<test_port_control_functions, Test port control functions>>.
 
 As the test port is independent of the upper protocol, the user has to maintain the mapping of connection tuples to any object, for example, the client in case of the SIP protocol.
 
-== Error Propagation
+=== Error Propagation
 
 The IPL4asp test port does not generate TTCN error at the point of either protocol or test port error. The immediate error generation behavior can be replaced with a more sophisticated, run-time configurable error handling mechanism, which passes the error to the user who can make decisions how to continue the test execution. See section <<_4, [4]>> for details.
 
-== Run-time Test Port Control
+=== Run-time Test Port Control
 
 The user is able to perform the following operations:
 
@@ -130,7 +124,7 @@ The above calls are implemented as external functions that can achieve the desir
 
 This strategy does not interfere with the earlier applied ASP-based test port control, as that may be handled in port extension (see provider port in <<_3, [3]>>).
 
-== Message Dissection
+=== Message Dissection
 
 A TTCN-3 or external C++ function can be used to find the message boundary in streams, which is implemented as a function reference registration in the test port.
 
@@ -138,23 +132,23 @@ The function is declared for the test port, but the user shall implement the fun
 
 The implementation of this feature is replaced with the sliding function prototype (see <<_3, [3]>>) as soon as it is supported. See <<getting_user_details, Getting User Details>> for details.
 
-== ASP-Based Notification of Asynchronous Events
+=== ASP-Based Notification of Asynchronous Events
 
 In the IPL4asp test port, asynchronous events may occur that the user is interested in, for example, a connection is opened or closed by the peer endpoint.
 
 The test port provides an ASP to inform the user about such events. See <<events, Events>> for details.
 
-== Automatic IP Address Discovery
+=== Automatic IP Address Discovery
 
 The test supports IP address discovery via DHCP and ARP for IPv4 addresses as functions. The functions return the IP addresses which can be configured using the functions of `TCCUsefulFunctions` <<_4, [4]>>.
 
 The parameters for the IP address discovery (such as the number of requested addresses or the name of the lease file) shall be given either as parameters of the function or as test port parameters in the run time configuration file, see <<Parameters_for_automatic_connection_during_mapping, Parameters for Automatic Connection During Mapping>>.
 
-== Connection Option Handling
+=== Connection Option Handling
 
 The test port makes it possible to specify connection options during connection creation and for an open connection. See details in <<setting_connection_options, Setting Connection Options>>.
 
-== SSL Functionality and Support
+=== SSL Functionality and Support
 
 From revision R6A—beside UDP, TCP and SCTP—SSL can also be used as transport channel. The same version of OpenSSL library must be used as in TITAN.
 
@@ -170,13 +164,13 @@ The supported SSL/TLS version can be disabled or enabled via test port parameter
 
 See sections <<Installation_and_Building_the_Test_Port, Installation and Building the Test Port>>, <<Parameters_for_IP_Auto-Configuration, Parameters for IP Auto-Configuration>>, and <<EIN_SS7_stack_parameters, EIN SS7 Stack Parameters>>.
 
-=== Compilation
+==== Compilation
 
 The usage of SSL and even the compilation of the SSL related code parts are optional. This is because SSL related code parts cannot be compiled without the OpenSSL installed.
 
 The compilation of SSL related code parts can be disabled by not defining the `IPL4_USE_SSL` macro in the _Makefile_ during the compilation. If the macro is defined in the _Makefile_, the SSL code parts are compiled to the executable test code. If it is not defined all SSL related request will cause an error result message about the not supported transport.
 
-=== Authentication
+==== Authentication
 
 The IPL4 test port provides both server side and client side authentication. When authenticating the other side, a certificate is requested and the own trusted certificate authorities’ list is sent. The received certificate is verified whether it is a valid certificate or not (the public and private keys are matching). No further authentication is performed (for example, whether hostname is present in the certificate). The verification can be enabled/disabled in the runtime configuration file, see <<EIN_SS7_stack_parameters, EIN SS7 Stack Parameters>>.
 
@@ -188,15 +182,15 @@ The own certificate(s), the own private key file, the optional password protecti
 
 The test port will check the consistency between its own private key and the public key (based on the own certificate) automatically. If the check fails, a warning is issued and execution continues.
 
-=== Pre-Shared Key Authentication
+==== Pre-Shared Key Authentication
 
 The client indicates its willingness to use pre-shared key authentication by including one or more PSK ciphersuites in the `ClientHello` message, the allowed ciphering suite can be specified (set `ssl_allowed_ciphers_list` to *"PSK"*) the TLS server selects one of the PSK ciphersuites, places the selected ciphersuite in the `ServerHello` message. It can provide a "PSK identity hint" in the `ServerKeyExchange` message. The `Certificate`, the `CertificateRequest` and the `CertificateVerify` messages are not sent if PSK is used (the parameters related to the certificate should not be set). The TLS handshake is authenticated using the Finished messages as usual. PSK-related parameters can be specified in the runtime configuration file see <<parameters_for_setting_PSK, Parameters for Setting PSK>>.
 
-=== Certificate Handling
+==== Certificate Handling
 
 By default, the globally defined certificate is used by all connection. In order to use a connection specific certificate, the test port parameter `TLS_CERT_PER_CONN` should be set to `_"YES"_` in the run time configuration file. Once the `TLS_CERT_PER_CONN` is set to `_"YES"_`, the connection specific certificate parameters can be supplied via the options parameter of the connect and listen functions.
 
-=== SSL Limitations
+==== SSL Limitations
 
 * The SSL re-handshaking requests are accepted and processed, however re-handshaking cannot be initiated from the test port.
 * The usage of SSL session resumption can be enabled/disabled in the runtime configuration file, see <<Parameters_specifying_SSL_connection_options, Parameters Specifying SSL Connection Options>>.
@@ -204,21 +198,21 @@ By default, the globally defined certificate is used by all connection. In order
 * The allowed ciphering suites can be restricted in the runtime configuration file, see <<EIN_SS7_stack_parameters, EIN SS7 Stack Parameters>>.
 
 [[DTLS_SRTP_limitations]]
-=== DTLS SRTP Limitations
+==== DTLS SRTP Limitations
 
 * The demultiplexing method described in section _5.1.2 Reception_ of DTLS SRTP <<_9, [9]>> is not supported. The test port assumes SRTP packets if SRTP is configured for the association.
 
-=== ALPN Support
+==== ALPN Support
 
 The test port supports the ALPN TLS extension and the ALPN negotiation.
 
 NOTE: The ALPN support requires OpenSSL 1.0.2 at least.
 
-== TLS Hostname Extension
+=== TLS Hostname Extension
 
 The test port supports the TLS hostname extension as client only.
 
-== DTLS Implementation
+=== DTLS Implementation
 
 DTLS support has been implemented only on [.underline]#UDP# and [.underline]#SCTP# in the test port, `UDPLight` can be implemented upon request.
 
@@ -233,37 +227,37 @@ Current DTLS implementation supports:
 * DTLS data exchange
 * Stopping the TLS layer
 
-=== Creation of DTLS Associations
+==== Creation of DTLS Associations
 
 Use `f_IPL4_connect()` function with `dtls := { udp := {} } or dtls := { sctp := {0,0,0,0} }` prototuple to initiate DTLS connection towards the remote peer. The test port will initiate the client-side handshake of the DTLS association, and report `AVAILABLE` event when it’s finished.
 
-=== Accepting Incoming DTLS Associations
+==== Accepting Incoming DTLS Associations
 
 Use `f_IPL4_listen()` function with `dtls := { udp := {} } or dtls := { sctp := {0,0,0,0} }` prototuple to initiate DTLS listening port. The test port will perform the server-side handshake if a client initiates a TLS handshake.
 
-=== Starting TLS Layer Upon Existing Sockets
+==== Starting TLS Layer Upon Existing Sockets
 
 Use `f_IPL4_StartTLS()` function to initiate the client- or server side TLS layer on top of already opened UDP or SCTP sockets.
 
-=== Query of the Local and Peer Certificate Fingerprint (thumbprint)
+==== Query of the Local and Peer Certificate Fingerprint (thumbprint)
 
 Use `f_IPL4_getLocalCertificateFingerprint()` function to query the fingerprint of the local (test port’s) certificate’s fingerprint. If the filename is supplied the fingerprint of the certificate file is returned. Otherwise, the fingerprint of the certificate belongs to the given `connID` is returned.
 
 Use `f_IPL4_getPeerCertificateFingerprint ()` function to query the fingerprint of the peer (remote side) certificate’s fingerprint. This function will return valid fingerprint only if the DTLS association has been established (the DTLS handshake is done).
 
-=== Generation on Keys and Salts for Encrypting SRTP
+==== Generation on Keys and Salts for Encrypting SRTP
 
 Use the `f_IPL4_exportSrtpKeysAndSalts()` function to generate keys and salts for SRTP encrypting. The function is the implementation of the exporter function described in section _4.2 Key Derivation_ in <<_9, [9]>>. This function will return valid fingerprint only if the DTLS association has been established, because it uses the shared secret agreed during the handshake process.
 
-=== Generation of Key for DTLS over SCTP
+==== Generation of Key for DTLS over SCTP
 
 Use the `f_IPL4_exportSctpKey()` function to generate a key for SCTP over DTLS encryption. The function is the implementation of the exporter function described in section _4.2 Key Derivation_ in <<_9, [9]>>. This function will return valid fingerprint only if the DTLS association has been established, because it uses the shared secret agreed during the handshake process.
 
-=== Setting Support for DTLS over SCTP
+==== Setting Support for DTLS over SCTP
 
 In order to run DTLS over SCTP it is necessary to enable __net.sctp.auth_enable__.
 
-=== Setting the Supported SRTP Profiles
+==== Setting the Supported SRTP Profiles
 
 If DTLS is used for SRTP key negotiation, then the supported SRTP protection profiles need to be set prior to the DTLS association is established. Current OpenSSL version (1.0.1g) supports the `SRTP_AES128_CM_SHA1_32` and `SRTP_AES128_CM_SHA1_80` protection profiles. The profile names must be separated by colons, ie. `SRTP_AES128_CM_SHA1_32:SRTP_AES128_CM_SHA1_80`
 
@@ -271,7 +265,7 @@ If DTLS is used for SRTP key negotiation, then the supported SRTP protection pro
 * Use the `f_IPL4_listen()` function and set the `options/dtlsSrtpProfiles` field to set the supported SRTP profiles for the server endpoint (socket). The specified selection profile will be used in the DTLS handshakes to agree in the SRTP selection profile with the clients.
 * Use the `f_IPL4_connect()` function and set the `options/dtlsSrtpProfiles` field to set the supported SRTP profiles for the client endpoint (socket). The specified selection profile is used in the DTLS handshake to agree in the SRTP selection profile with the remote peer.
 
-=== DTLS Data Exchange
+==== DTLS Data Exchange
 
 Use the `f_IPL4_send()` function to send data. If the function is called with UDP prototuple, then the test port will send the data unencrypted (SRTP packets need to be sent this way), otherwise it encrypts as DTLS. In the same way the function will send encrypted messaged over the SCTP stream if the DTLS encryption is enabled.
 
@@ -281,9 +275,9 @@ If DTLS over SCTP is enabled, in case of incoming data, the data will be first d
 
 If SRTP selection profile is not set on the DTLS association, then the data is DTLS unencrypted first, and then passed to the testcase.
 
-=== Stopping the TLS Layer
+==== Stopping the TLS Layer
 
-== SCTP Stack
+=== SCTP Stack
 
 The IPL4 test port can use either the kernel based SCTP stack or the SCTP API of the EIN SS7 stack.
 
@@ -292,7 +286,7 @@ The IPL4 test port supports local multi homing and probing of all IP addresses o
 See <<parameters_specifying_SCTP_connection_options, Parameters Specifying SCTP Connection Options>> for configuration file parameters for EIN SS7 stack.
 
 [[connId_release]]
-== `connId` Release
+=== `connId` Release
 
 How to release `connId`:
 
@@ -306,13 +300,13 @@ The `connId` is released only after the confirmation message. After the `connId`
 
 The confirmed mode can be activated by setting the test port parameter `connId_release_mode` to `_"confirmed"_`.
 
-== Path MTU Discovery
+=== Path MTU Discovery
 
 The IPL4 test port can read the Path MTU of a connected socket. See <<getting_path_MTU, Getting Path MTU>> for further information.
 
-= Test Port Usage
+== Test Port Usage
 
-== Overview
+=== Overview
 
 The IPL4asp test port is a general purpose transport layer test port enabling one to use several different transport protocols over IPv4 or IPv6, with individual connection properties. This is achieved by applying the virtual networking host concept, which ensures the use of the whole port number region for each protocol, and the use of each protocol for each IP address representing one virtual networking host. The figure below shows one host using N protocols and the same M ports for each protocol. One may use as many of this virtual networking host as needed up to the constraints of the target operating system and hardware.
 
@@ -324,7 +318,7 @@ image:images/Concept_of_Virtual_networking_host.png[alt]
 The test port is a so called provider port, i.e. the user may define several different session specific test ports based on it, applying the encoding and decoding functions of the session protocols and maybe some more functionalities. For more information on provider ports see <<_3, [3]>>.
 
 [[Installation_and_Building_the_Test_Port]]
-== Installation and Building the Test Port
+=== Installation and Building the Test Port
 
 Since the IPL4asp test port is used as a part of the TTCN-3 test environment, this requires TTCN-3 Test Executor to be installed before any operation of the IPL4asp test port. For more details on the installation of TTCN-3 Test Executor see the relevant section of <<_2, [2]>>.
 
@@ -388,7 +382,7 @@ Before running the demo:
 * Be careful before running the demo as it tries to reconfigure an Ethernet interface, broadcasts ARP requests and requests IP address leases from a DHCP server
 * The name of the Ethernet interface and the IP address values should be checked and modified in __IPL4_demo.ttcn__ and __IPL4_demo.cfg__ as necessary.
 
-== Extending the Port
+=== Extending the Port
 
 As the port is controlled via the public member functions of the provider port, some special C++ files are required for user extensions of the port that the predefined control functions can be called.
 
@@ -438,13 +432,13 @@ Alternatively, one may apply names here depending on their special naming conven
 NOTE: In "demo" directory a script file called __generate_control_functs.sh__ can be found.  This script file can be used to automatically generate the files __IPL4asp_User_CtrlFunct.ttcn__ and __IPL4asp_User_CtrlFunctDef.cc__ and replace the tags described above. The script should be put in the same directory with __IPL4asp_PortType.ttcn__ and __IPL4asp_PT.cc__ because it generates the files from these.
 
 [[configuration]]
-== Configuration
+=== Configuration
 
 The executable test program behavior is determined via the run-time configuration file. This is a simple text file, which contains various sections (for example, `[TESTPORT_PARAMETERS]`) after each other. The usual suffix of configuration files is _.cfg_. For further information on the configuration file see <<_2, [2]>>.
 
 The IPL4asp test port supports parameters as specified in the following sections.
 
-=== General Test Port Parameters
+==== General Test Port Parameters
 
 * `debug`
 +
@@ -517,7 +511,7 @@ If this parameter is set to `_"yes"_` then the `connId` fields of the outgoing m
 The `connId` `_"-1"_` is accepted only if there is only one connection.
 
 [[Parameters_for_automatic_connection_during_mapping]]
-=== Parameters for Automatic Connection During Mapping
+==== Parameters for Automatic Connection During Mapping
 
 `map_behavior`
 
@@ -544,7 +538,7 @@ The remote port number to connect
 The remote host to connect
 
 [[Parameters_for_IP_Auto-Configuration]]
-=== Parameters for IP Auto-Configuration
+==== Parameters for IP Auto-Configuration
 
 * `ipAddressDiscoveryType`
 +
@@ -638,7 +632,7 @@ Default is `_"50"_`.
 
 
 [[parameters_specifying_the_default_connection_options]]
-=== Parameters Specifying the Default Connection Options
+==== Parameters Specifying the Default Connection Options
 
 The following parameters give the initial values of default connection options which will be applied when the options are not specified in listen or connect function calls. (Defaults can be changed with function calls on test port component level.)
 
@@ -744,7 +738,7 @@ This enumeration option sets the Path MTU behavior. The following values can be 
 ** `_MTU_`: Only for "get" mode! Returns the current Path MTU.
 
 [[parameters_specifying_SCTP_connection_options]]
-=== Parameters Specifying SCTP Connection Options
+==== Parameters Specifying SCTP Connection Options
 
 In the `[TESTPORT_PARAMETERS]` section the following parameters can be set for the SCTP support. These parameters are applying to the test port globally.
 
@@ -846,7 +840,7 @@ The parameter is optional, and can be used to specify the PMTU (Path Maximum Tra
 Default is `_"0"_`, which means that the kernel routines will determine the PMTU.
 
 [[EIN_SS7_stack_parameters]]
-=== EIN SS7 Stack Parameters
+==== EIN SS7 Stack Parameters
 
 * `CPMANAGERIPA`
 +
@@ -869,7 +863,7 @@ This parameter sets the instance (back end process) to which the port connects, 
 This parameter sets the instance ID of the EINSS7 stack user.
 
 [[Parameters_specifying_SSL_connection_options]]
-=== Parameters Specifying SSL Connection Options
+==== Parameters Specifying SSL Connection Options
 
 These parameters are only available if `IPL4_USE_SSL` macro is defined during compilation.
 
@@ -944,7 +938,7 @@ To disable the SSL/TLS version, set the corresponding parameter `_"no"_`.
 If set to `_"YES"_`, the TLS/SSL certificates parameters can be specified per connection. Otherwise every connection use the same global parameters.
 
 [[parameters_for_setting_PSK]]
-==== Parameters for Setting PSK
+===== Parameters for Setting PSK
 
 * `psk_identity`
 +
@@ -958,7 +952,7 @@ The parameter is optional, it is the pre-shared key in hexadecimal representatio
 +
 The server can provide a "PSK identity hint" in the `ServerKeyExchange` message. The parameter is optional.
 
-== Useful Functions
+=== Useful Functions
 
 The `IPL4asp_Functions` TTCN module contains some interface handling functions that may be useful in writing test cases. Each of these functions is based on the `TCCInterface_Functions` described in <<_4, [4]>>.
 
@@ -1015,7 +1009,7 @@ Based on the input address split with the `f_nextIpAddress` function, it returns
 +
 NOTE: This function neither checks the availability of the address nor skips the network and broadcast addresses.
 
-== Functions for IP Auto-Configuration
+=== Functions for IP Auto-Configuration
 
 The `IPL4asp_Functions` TTCN module contains four functions to help setting up IP addresses automatically.
 
@@ -1100,7 +1094,7 @@ The lease time specifies the duration of the validity of the IP addresses reques
 The lease file stores the necessary information to reuse IP address leases between subsequent calls or to release those.
 
 [[events]]
-== Events
+=== Events
 
 The asynchronous events in the port generate the `ASP_Event` type. If the event is suspected to be an error, remember to check the test port log (if possible with debug information) for details.
 
@@ -1142,7 +1136,7 @@ An SCTP specific event is arrived. SCTP specific event can be:
 
 The arriving of SCTP events can be turned off with the options described in <<parameters_specifying_the_default_connection_options, Parameters Specifying the Default Connnection Options>>.
 
-== Examples
+=== Examples
 
 The "demo" directory contains examples to use the default user port and to extend the port for SIP.
 
@@ -1150,10 +1144,10 @@ There is also an old-style port mapping example for TITAN releases before R7.
 
 Example configuration file and a project file for the TITAN GUI are also provided as a starting point.
 
-= Interface Description
+== Interface Description
 
 [[prototuples]]
-== ProtoTuples
+=== ProtoTuples
 
 For each protocol IPL4 testport handles different _Connection tuples_ defined in a union called `ProtoTuple`. The following _Connection tuples_ are in use:
 
@@ -1199,7 +1193,7 @@ This tuple is used for sending and receiving DTLS type messages.
 * `udp` specifies that underlying layer is UDP
 * `sctp` specifies that underlying layer is SCTP
 
-== Send and Receive Functions
+=== Send and Receive Functions
 
 The message based IPL4asp provider test port has the following declaration:
 
@@ -1280,7 +1274,7 @@ Other asynchronous events, such as: connection opened, closed and errors (except
 
 NOTE: Errors also include notifications about unavailability and availability of a connection for writing.
 
-== IPv6 Link Local Address Handling
+=== IPv6 Link Local Address Handling
 
 Every IPv6 address, except the unspecified address (::), has a "scope" which specifies in which part of the network it is valid.
 
@@ -1292,7 +1286,7 @@ The scope can be specified with prefixes which determine the interface. For exam
 fe80::219:b9ff:fef2:fd09%eth3
 
 [[test_port_control_functions]]
-== Test Port Control Functions
+=== Test Port Control Functions
 
 Connection control operations are implemented as functions; and are used to open and close connections, modifying test port behavior and connection properties.
 
@@ -1305,7 +1299,7 @@ Common arguments of the control functions are:
 `portRef`: Test Port reference. This is needed to access some public members of the test port. For the description of other common parameters, see section <<prototuples, ProtoTuples>>.
 
 [[creating_listener]]
-=== Creating Listener
+==== Creating Listener
 
 The `f_IPL4_listen` function can be used to create a listening socket. The connection ID is returned in the Result record.
 
@@ -1329,7 +1323,7 @@ If `portNum` is `_"-1"_`, the default port number (by default 9999) is used may 
 If options is specified, then the test port level defaults can be overridden. This parameter can be omitted for backward compatibility and simplicity. See section <<sctp_multihoming, SCTP Multihoming>>.
 
 [[creating_connection]]
-=== Creating Connection
+==== Creating Connection
 
 The `f_IPL4_connect` function can be used to create a connection. The connection ID is returned in the Result record.
 
@@ -1358,14 +1352,14 @@ NOTE: In pure no-blocking mode the function returns immediately, possibly withou
 If options is specified, then the test port level defaults can be overridden. This parameter can be omitted for backward compatibility and simplicity. See section <<sctp_multihoming, SCTP Multihoming>>.
 
 [[sctp_multihoming]]
-=== SCTP Multihoming
+==== SCTP Multihoming
 
 The IPL4 test port supports local multihoming configuration with the EIN SS7 SCTP stack.
 
 The additional local addresses can be configured via the `"HostList"` option. The test port supports only IPv4 or IPv6 literal addresses with the SS7 SCTP stack. Both IP literals and host names can be used with kernel SCTP stack.
 
 [[setting_connection_options]]
-=== Setting Connection Options
+==== Setting Connection Options
 
 A list of options can be specified when the connection is created in `f_IPL4_listen` or `f_IPL4_connect` and in the `f_IPL4_setOpt` function.
 
@@ -1395,7 +1389,7 @@ For IPsec tunnel mode the `UDP_ENCAP` option of the UDP socket should be called.
 
 The dscp option can be specified for an opened connection to set the DSCP field of the IP header.
 
-=== Getting Connection Options
+==== Getting Connection Options
 
 It is also possible to read the value of a given socket option. You can specify an Option, and the current value will be returned in an `Extended_Result`, at the `msg` field.
 
@@ -1412,7 +1406,7 @@ external function f_IPL4_getOpt(
 [[the-f-ipl4-getopt-function-only-supports-mtu-discover-for-now]]
 The `f_IPL4_getOpt` function only supports `mtu_discover` for now.
 
-=== Closing Connection
+==== Closing Connection
 
 Connections are closed with the `f_IPL4_close` function.
 
@@ -1427,7 +1421,7 @@ external function f_IPL4_close(
 ) return Result;
 ----
 
-=== Abnormal Close
+==== Abnormal Close
 
 In order to force the abnormal closure of TCP or SCTP connection the `SO_LINGER` option should be enabled and set to `_"0"_` by calling `f_IPL4_setOpt` function.
 
@@ -1439,7 +1433,7 @@ f_IPL4setOpt(IPL4port,{{solinger:={l_onoff:=1,l_linger:=0}}},connID,{ sctp:={ om
 f_IPL4_close(IPL4port, connID)
 ----
 
-=== Setting User Data
+==== Setting User Data
 
 Each connection may be associated with some user specified data that may help the user to handle connection mappings.
 
@@ -1454,7 +1448,7 @@ external function f_IPL4_setUserData(
 ) return Result;
 ----
 
-=== Getting User Data
+==== Getting User Data
 
 If the user associated data with a connection, then it can be retrieved with the following function:
 
@@ -1468,7 +1462,7 @@ external function f_IPL4_setUserData(
 ----
 
 [[getting_user_details]]
-=== Getting User Details
+==== Getting User Details
 
 If the user needs various connection details, then it can be retrieved with the following function:
 
@@ -1490,7 +1484,7 @@ With this function user can get local address and local port, the remote address
 * `IPL4_USERDATA`
 * `IPL4_PARENTIDX`
 
-=== Message Dissection
+==== Message Dissection
 
 In stream-based protocols (e.g. TCP, SSL), only the upper protocol may know how to find message boundaries in the stream of bytes. In order to perform this task in the test port independently from any session protocols, a callback function may be registered for each connection in the test port. This way the user will receive complete messages, even in case of stream-based protocols.
 
@@ -1516,6 +1510,10 @@ type function f_IPL4_getMsgLen(
 
 The callback function takes an octetstring as one of its arguments. It contains the bytes of the message received so far. The callback function has to return the length of the message if completely received. It has to return `_"-1"_` if the length cannot be determined. If the message is incomplete, but the length can be determined, then the function should return the length. In this case the callback function will not be called again for the given message – possibly increasing the performance. Alternatively the function may always return `_"-1"_` when the message is incomplete.
 
+If the callback function detects that the it will be impossible to determine the length of the message, even receiving more octests, should return `_"-2"_`. In this case the connection will be closed and the length calculation error will be reported.
+
+If the callback function returns `_"0"_` run time error will be raised to avoid deadlock.
+
 `msgLenArgs` is record of integer stored for each connection. It is not modified by the test port and opaque for that. Its purpose is to support efficient implementation of the callback function. (In SIP, for example, it could store the length value from the *_CONTENT-LENGTH_* header.)
 
 The default operation is to return all bytes which were momentarily received.
@@ -1526,7 +1524,7 @@ The forked sockets of a listening socket will by default inherit the message dis
 
 NOTE: If id in the function is omitted (or given as `_"-1"_`), function change will *not* take effect in already existing connections and listening sockets. New connections opened by an already existing listening socket will use the message dissection function inherited from its parent listening socket (so they will use the old message dissection function).
 
-=== Message Dissection Function for Binary Protocols
+==== Message Dissection Function for Binary Protocols
 
 A predefined message dissection function is provided by the IPL4 test port for binary protocols with fixed placed and constant sized length fields, such as DIAMETER, ICR.
 
@@ -1545,7 +1543,7 @@ The args should be a list of 5 integer values:
 
 `__`args[4]:`__` The endianess of length field. 1-Little endian, 0-Big endian
 
-=== Send Messages
+==== Send Messages
 
 Besides the `ASP_Send` or `ASP_SendTo` the `f_IPL4_send` and `f_IPL4_sento` can be used to send messages over the network depending on whether the socket is connected or not connected, respectively.
 
@@ -1569,7 +1567,7 @@ external function f_IPL4_sendto(
 ----
 
 [[start-tls-over-existing-tcp-udp-connection]]
-=== Start TLS Over Existing TCP/UDP Connection
+==== Start TLS Over Existing TCP/UDP Connection
 
 The test port is able to initiate the TLS negotiation over the existing TCP/UDP connection.
 
@@ -1585,7 +1583,7 @@ external function f_IPL4_StartTLS(
 ----
 
 [[getting_path_MTU]]
-=== Getting Path MTU
+==== Getting Path MTU
 
 You can read the Path MTU value of a connected socket using `f_IPL4_getConnectedPathMTU`. It returns an `Extended_Result`.
 
@@ -1601,7 +1599,7 @@ external function f_IPL4_getConnectedPathMTU(
 The `f_IPL4_getOpt` function only supports `mtu_discover` for now.
 
 [[error-messages]]
-= Error Messages
+== Error Messages
 
 The IPL4asp test port does not generate TTCN error at the point of either protocol or test port error. The immediate error generation behavior is replaced with passing the error to the user who can make decisions how to continue the test execution.
 
@@ -1645,7 +1643,7 @@ Occurs only in `pureNonBlocking` mode. If the socket is not writeable thus the m
 
 Once a formerly `TEMPORARILY_UNAVAILABLE` (see above) socket becomes writeable again, this notification is sent to the TTCN-3 user. It’s the user’s responsibility to retransmit that message again which was not sent previously because the socket wasn’t available.
 
-= Terminology
+== Terminology
 
 Connection tuple: +
 Set of parameters that unambiguously identify a transport connection. It consists of the protocol (TCP, UDP, SCTP or SSL), the local IP address and port and the remote IP address and port.
@@ -1658,7 +1656,7 @@ Test port component level unique identifier of the connection.
 OpenSSL: +
 The OpenSSL Project is a collaborative effort to develop a robust, commercial-grade, full-featured, and open source toolkit implementing the Secure Sockets Layer (SSL v2/v3) and Transport Layer Security (TLS v1) protocols as well as a full-strength general purpose cryptography library. For more information on the OpenSSL project see <<_5, [5]>>.
 
-= Abbreviations
+== Abbreviations
 
 API:: Application Programming Interface
 
@@ -1694,7 +1692,7 @@ TTCN-3:: Testing and Test Control Notation version 3
 
 UDP:: User Datagram Protocol
 
-= References
+== References
 
 [[_1]]
 [1] ETSI ES 201 873-1 v4.3.1 (2011-06) +
