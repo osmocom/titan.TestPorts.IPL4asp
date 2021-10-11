@@ -1,0 +1,329 @@
+module IPL4_demo {
+
+import from IPL4asp_PortType all;
+import from IPL4asp_Types all;
+import from IPL4_demo_templates all;
+
+type component system_CT {
+  port IPL4asp_PT IPL4;
+}
+
+type component dummy_CT {
+  port IPL4asp_PT IPL4;
+}
+
+type charstring HostName;
+type integer PortNumber;
+
+modulepar integer connCnt := 5; // no more than 32767 :)
+modulepar integer msgCnt := 3;
+modulepar float timeoutVal := 5.0;
+
+const HostName c_ipv4AnyAddr := "0.0.0.0";
+const HostName c_ipv6AnyAddr := "::";
+const PortNumber c_anyPort := 0;
+const HostName c_defaultLocAddr := "";
+const PortNumber c_defaultLocPort := -1;
+
+testcase tc_UDP_listen_dummy() runs on dummy_CT {
+  var ro_ConnectionId id;
+  var PortNumber basePort := 9100;
+  var Result result;
+
+  timer T;
+
+
+  map(self:IPL4, system:IPL4);
+
+  log(">>> UDP connections <<<");
+  for (var integer i := 0; i < 2 * connCnt; i := i + 1) {
+    log("Call f_IPL4_listen to open UDP socket on localhost:", basePort + i);
+    result := IPL4asp_PortType.f_IPL4_listen(IPL4, "127.0.0.1", basePort + i, {udp := {}});
+    if (ispresent(result.errorCode)) {
+      setverdict(fail);
+      stop;
+    }
+    setverdict(pass);
+    id[i] := result.connId;
+  }
+  log("UDP sockets: ", id);
+
+  var ASP_SendTo asp := {
+    connId := 0,
+    remName := "127.0.0.1",
+    remPort := 0,
+    proto := omit/*{udp := {}}*/,      
+    msg := char2oct("Hello Bello!")
+  };
+
+  for (var integer i := 0; i < msgCnt; i := i + 1) {
+    for (var integer j := 0; j < connCnt; j := j + 1) {
+      asp.remPort := basePort + 2 * j + 1;
+      asp.connId := id[j];
+      IPL4.send(asp);
+      T.start(timeoutVal);    
+      alt {
+        [] IPL4.receive(t_recvfrom) {
+          log("Communication ASP received")
+          setverdict(pass);
+          T.stop;
+        }
+        [] IPL4.receive(t_res) {
+          log("Event: Result ASP received")
+          setverdict(fail);
+          T.stop;
+        }
+        [] IPL4.receive(t_open) {
+          log("Event: Connection opened")
+          setverdict(fail);
+          T.stop;
+        }
+        [] IPL4.receive(t_close) {
+          log("Event: Connection closed")
+          setverdict(fail);
+          T.stop;
+        }
+        [] T.timeout {
+          log("timeout");
+          setverdict(fail);
+        }
+      } // alt
+    } // for j
+  } // for i
+
+  for (var integer i := 0; i < sizeof(id); i := i + 1) {
+    result := IPL4asp_PortType.f_IPL4_close(IPL4, id[i]/*, {udp := {}}*/);
+    log("close result: ", result);          
+  }
+}
+
+testcase tc_TCP_listen_dummy() runs on dummy_CT {
+  var ro_ConnectionId id;
+  var PortNumber basePort := 9100;
+  var Result result;
+
+  timer T;
+
+  map(self:IPL4, system:IPL4);
+
+  log(">>> TCP connections <<<");
+  for (var integer i := 0; i < connCnt; i := i + 1) {
+    log("Call f_IPL4_listen to open TCP socket on localhost:", basePort + i);
+    result := IPL4asp_PortType.f_IPL4_listen(IPL4, "127.0.0.1", basePort + i, {tcp := {}});
+    if (ispresent(result.errorCode)) {
+      setverdict(fail);
+      stop;
+    }
+    setverdict(pass);
+    id[i] := result.connId;
+  }
+  for (var integer i := 0; i < connCnt; i := i + 1) {
+    log("Call f_IPL4_connect to open TCP socket on localhost:",
+      basePort + i);
+    result := IPL4asp_PortType.f_IPL4_connect(IPL4, "127.0.0.1", basePort + i,
+      c_ipv4AnyAddr, c_anyPort, 0, {tcp := {}});
+    log("connect result: ", result);                               
+    if (ispresent(result.errorCode)) {
+      setverdict(fail);
+      stop;
+    }
+    setverdict(pass);
+    IPL4.receive(t_open);
+    id[connCnt + i] := result.connId;
+  }
+  log("TCP sockets: ", id);
+
+  var ASP_Send aspSend := {
+    connId := 0,
+    proto := omit/*{tcp := {}}*/,
+    msg := char2oct("Hello Bello!\r\nContent-Length: 10\r\n\r\n0123456789")
+  };
+
+  for (var integer i := 0; i < msgCnt; i := i + 1) {
+    for (var integer j := 0; j < connCnt; j := j + 1) {
+      aspSend.connId := id[connCnt + j];
+      IPL4.send(aspSend);
+      T.start(timeoutVal);
+      alt {
+        [] IPL4.receive(t_recvfrom) {
+          log("Communication ASP received")
+          setverdict(pass);
+          T.stop;            
+        }
+        [] IPL4.receive(t_res) {
+          log("Event: Result ASP received")
+          setverdict(fail);
+          T.stop;
+        }
+        [] IPL4.receive(t_open) {
+          log("Event: Connection opened")
+          setverdict(fail);
+          T.stop;
+        }
+        [] IPL4.receive(t_close) {
+          log("Event: Connection closed")
+          setverdict(fail);
+          T.stop;
+        }
+        [] T.timeout {
+          log("timeout");
+          setverdict(fail);
+        }
+      } // alt
+    } // for j
+  } // for i
+
+  for (var integer i := 0; i < sizeof(id); i := i + 1) {
+    result := IPL4asp_PortType.f_IPL4_close(IPL4, id[i], {tcp := {}});
+    log("close result: ", result);         
+  }   
+}
+
+testcase TC_listen_connect() runs on dummy_CT {
+  var ro_ConnectionId id;
+  var PortNumber basePort := 9100;
+  var Result result;
+
+  timer T;
+  var ASP_Send asp := {
+    connId := 0,
+    proto := {udp := {}},
+    msg := char2oct("Hello Bello!")
+  };
+
+  map(self:IPL4, system:IPL4);
+
+  for (var integer i := 0; i < 2 * connCnt; i := i + 1) {
+    log("Call f_IPL4_listen to open UDP socket on localhost:", basePort + i);
+    result := IPL4asp_PortType.f_IPL4_listen(IPL4, "127.0.0.1", basePort + i, {udp := {}});
+    if (ispresent(result.errorCode)) {
+      setverdict(fail);
+      stop;
+    }
+    id[i] := result.connId;
+    if (i < connCnt) {
+      log("Connect UDP socket to remote socket 127.0.0.1:",
+        basePort + connCnt + i);
+      result := IPL4asp_PortType.f_IPL4_connect(IPL4, "127.0.0.1", basePort + connCnt + i,
+        "", 0, id[i], {udp := {}});
+      if (ispresent(result.errorCode)) {
+        setverdict(fail);
+        stop;
+      }
+      setverdict(pass);
+    }
+  }
+  log("UDP sockets: ", id);
+
+  for (var integer i := 0; i < msgCnt; i := i + 1) {
+    for (var integer j := 0; j < connCnt; j := j + 1) {
+      asp.connId := id[j];
+      IPL4.send(asp);
+      T.start(timeoutVal);    
+      alt {
+        [] IPL4.receive(t_recvfrom) {
+          log("Communication ASP received")
+          setverdict(pass);
+          T.stop;
+        }
+        [] IPL4.receive(t_res) {
+          log("Event: Result ASP received")
+          setverdict(fail);
+          T.stop;
+        }
+        [] IPL4.receive(t_open) {
+          log("Event: Connection opened")
+          setverdict(fail);
+          T.stop;
+        }
+        [] IPL4.receive(t_close) {
+          log("Event: Connection closed")
+          setverdict(fail);
+          T.stop;
+        }
+        [] T.timeout {
+          log("timeout");
+          setverdict(fail);
+        }
+      } // alt
+    } // for j
+  } // for i
+
+  for (var integer i := 0; i < 2 * connCnt; i := i + 1) {
+    result := IPL4asp_PortType.f_IPL4_close(IPL4, id[i], {udp := {}});
+  }
+}
+
+testcase TC_connect() runs on dummy_CT {
+  var ro_ConnectionId id;
+  var PortNumber basePort := 9100;
+  var Result result;
+
+  timer T;
+  var ASP_Send asp := {
+    connId := 0,
+    proto := {udp := {}},      
+    msg := char2oct("Hello Bello!")
+  };
+
+  map(self:IPL4, system:IPL4);
+
+  for (var integer i := 0; i < 2 * connCnt; i := i + 1) {
+    var integer p;
+    if (i < connCnt) {
+      p := basePort + i + connCnt;
+    } else {
+      p := basePort + i - connCnt;
+    }
+    log("Connect UDP socket to remote socket 127.0.0.1:", p);
+    result := IPL4asp_PortType.f_IPL4_connect(IPL4, "127.0.0.1", p, "127.0.0.1",  basePort + i, 0, {udp := {}});
+    // instead of 127.0.0.1 use ::1 for IPv6 type loopback address
+    if (ispresent(result.errorCode)) {
+      setverdict(fail);
+      stop;
+    }
+    id[i] := result.connId;
+    setverdict(pass);
+  }
+
+  for (var integer i := 0; i < msgCnt; i := i + 1) {
+    for (var integer j := 0; j < connCnt * 2; j := j + 1) { 
+      asp.connId := id[j];
+      IPL4.send(asp);
+      T.start(timeoutVal);
+      alt {
+        [] IPL4.receive(t_recvfrom) {
+          log("Communication ASP received")
+          setverdict(pass);
+          T.stop;
+        }
+        [] IPL4.receive(t_res) {
+          log("Event: Result ASP received")
+          setverdict(fail);
+          T.stop;
+        }
+        [] IPL4.receive(t_open) {
+          log("Event: Connection opened")
+          setverdict(fail);
+          T.stop;
+        }
+        [] IPL4.receive(t_close) {
+          log("Event: Connection closed")
+          setverdict(fail);
+          T.stop;
+        }
+        [] T.timeout {
+          log("timeout");
+          setverdict(fail);
+        }
+      } // alt
+    } // for j
+  } // for i
+
+  for (var integer i := 0; i < 2 * connCnt; i := i + 1) {
+    result := IPL4asp_PortType.f_IPL4_close(IPL4, id[i], {udp := {}});
+  }
+} // TC_connect
+}
+
+
