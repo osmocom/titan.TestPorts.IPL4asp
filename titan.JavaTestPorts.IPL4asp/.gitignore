@@ -1,0 +1,5 @@
+#Class files
+/java_bin/
+
+# Generated java files
+/java_src/
