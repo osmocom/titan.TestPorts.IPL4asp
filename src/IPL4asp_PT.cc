@@ -1179,6 +1179,9 @@ void IPL4asp__PT_PROVIDER::Handle_Fd_Event_Readable(int fd)
     if(sockList[connId].type == IPL4asp_SCTP_LISTEN) {
 #ifdef USE_SCTP
       k = ConnAdd(IPL4asp_SCTP, sock, sockList[connId].ssl_tls_type, NULL ,connId);
+      Socket__API__Definitions::ProtoTuple proto;
+      proto.sctp() = SctpTuple(OMIT_VALUE, OMIT_VALUE, OMIT_VALUE, OMIT_VALUE);
+      setOptions(NULL_VALUE,sock, proto, false);
 #else
       sendError(PortError::ERROR__UNSUPPORTED__PROTOCOL, sockList[connId].sock);
       return;
@@ -3530,6 +3533,7 @@ bool IPL4asp__PT_PROVIDER::setOptions(const OptionList& options,
     events.sctp_adaption_layer_event = (boolean) globalConnOpts.sctp_adaptation_layer_event;
 #endif
     if(sock!=-1){
+      IPL4_DEBUG("IPL4asp__PT_PROVIDER::setOptions: Setting sctp event options");
       if (setsockopt(sock, IPPROTO_SCTP, SCTP_EVENTS, &events, sizeof (events)) < 0)
       {
         TTCN_warning("Setsockopt error!");
