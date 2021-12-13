@@ -1484,7 +1484,7 @@ void IPL4asp__PT_PROVIDER::Handle_Fd_Event_Readable(int fd)
       struct iovec  iov[1];
       struct cmsghdr  *cmsg;
       struct sctp_sndrcvinfo *sri;
-      char   cbuf[sizeof (*cmsg) + sizeof (*sri)];
+      char   cbuf[2*(sizeof (*cmsg) + sizeof (*sri))];
       size_t cmsglen = sizeof (*cmsg) + sizeof (*sri);
       struct sockaddr_storage peer_addr;
       socklen_t peer_addr_len=sizeof(struct sockaddr_storage);
@@ -1494,9 +1494,9 @@ void IPL4asp__PT_PROVIDER::Handle_Fd_Event_Readable(int fd)
       msg->msg_name=(void *)&peer_addr;
       msg->msg_namelen=peer_addr_len;
       msg->msg_control = cbuf;
-      msg->msg_controllen = sizeof (*cmsg) + sizeof (*sri);
+      msg->msg_controllen = 2*(sizeof (*cmsg) + sizeof (*sri));
       msg->msg_flags = 0;
-      memset(cbuf, 0, sizeof (*cmsg) + sizeof (*sri));
+      memset(cbuf, 0,2*(sizeof (*cmsg) + sizeof (*sri)));
       cmsg = (struct cmsghdr *)cbuf;
       sri = (struct sctp_sndrcvinfo *)(cmsg + 1);
       iov->iov_base = buf;
@@ -1506,7 +1506,7 @@ void IPL4asp__PT_PROVIDER::Handle_Fd_Event_Readable(int fd)
 #ifdef OPENSSL_SCTP_SUPPORT
       bool sctpNotification = false;
 #endif
-
+      IPL4_DEBUG("IPL4asp__PT_PROVIDER::Handle_Fd_Event_Readable: msg->msg_controllen %d", msg->msg_controllen);
       int getmsg_retv=getmsg(sock, connId, msg, buf, &buflen, &n, cmsglen);
       switch(getmsg_retv){
       case IPL4_SCTP_WHOLE_MESSAGE_RECEIVED:
@@ -1812,6 +1812,7 @@ int IPL4asp__PT_PROVIDER::getmsg(int fd, int connId, struct msghdr *msg, void */
     // so that SSL_read can access the data as well.
     *nrp = recvmsg(fd, msg, MSG_PEEK);
   }
+  IPL4_DEBUG("IPL4asp__PT_PROVIDER::getmsg: msg->msg_controllen %d", msg->msg_controllen);
   //IPL4_DEBUG("IPL4asp__PT_PROVIDER::getmsg: nr: %ld",*nrp);
   if (*nrp < 0) {
     /* EOF or error */
